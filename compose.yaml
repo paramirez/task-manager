@@ -14,6 +14,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+  localstack:
+    image: localstack/localstack:3
+    environment:
+      SERVICES: sqs
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./docker/localstack/init:/etc/localstack/init/ready.d
+    healthcheck:
+      test: ["CMD", "bash", "-c", "awslocal sqs list-queues >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
 volumes:
   pg_data:

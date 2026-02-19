@@ -61,6 +61,11 @@ import {
   FIND_TASK_BY_ID_QUERY,
   FindTaskByIdQuery,
 } from '@/modules/task/application/queries/find-task-by-id/FindTaskByIdQuery';
+import { FindTasksByStatusQueryHandler } from '@/modules/task/application/queries/find-tasks-by-status/FindTasksByStatusQueryHandler';
+import {
+  FIND_TASKS_BY_STATUS_QUERY,
+  FindTasksByStatusQuery,
+} from '@/modules/task/application/queries/find-tasks-by-status/FindTasksByStatusQuery';
 import { DispatchOutboxMessagesHandler } from '@/modules/outbox/application/handlers/DispatchOutboxMessagesHandler';
 import {
   DISPATCH_OUTBOX_MESSAGES_COMMAND,
@@ -83,6 +88,21 @@ import {
 } from '@/modules/async-jobs/application/commands/process-async-jobs/ProcessAsyncJobsCommand';
 import { EnqueueTaskCreatedOutboxEventHandler } from '@/modules/outbox/application/handlers/EnqueueTaskCreatedOutboxEventHandler';
 import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEvent';
+import { UpdateTaskCommandHandler } from '@/modules/task/application/commands/update-task/UpdateTaskCommandHandler';
+import {
+  UPDATE_TASK_COMMAND,
+  UpdateTaskCommand,
+} from '@/modules/task/application/commands/update-task/UpdateTaskCommand';
+import { PatchTaskCommandHandler } from '@/modules/task/application/commands/patch-task/PatchTaskCommandHandler';
+import {
+  PATCH_TASK_COMMAND,
+  PatchTaskCommand,
+} from '@/modules/task/application/commands/patch-task/PatchTaskCommand';
+import { DeleteTaskCommandHandler } from '@/modules/task/application/commands/delete-task/DeleteTaskCommandHandler';
+import {
+  DELETE_TASK_COMMAND,
+  DeleteTaskCommand,
+} from '@/modules/task/application/commands/delete-task/DeleteTaskCommand';
 
 @Global()
 @Module({
@@ -132,9 +152,37 @@ import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEven
       inject: [TASK_REPOSITORY],
     },
     {
+      provide: FindTasksByStatusQueryHandler,
+      useFactory(taskRepository: TaskRepository) {
+        return new FindTasksByStatusQueryHandler(taskRepository);
+      },
+      inject: [TASK_REPOSITORY],
+    },
+    {
       provide: FindTaskByIdQueryHandler,
       useFactory(taskRepository: TaskRepository) {
         return new FindTaskByIdQueryHandler(taskRepository);
+      },
+      inject: [TASK_REPOSITORY],
+    },
+    {
+      provide: UpdateTaskCommandHandler,
+      useFactory(taskRepository: TaskRepository) {
+        return new UpdateTaskCommandHandler(taskRepository);
+      },
+      inject: [TASK_REPOSITORY],
+    },
+    {
+      provide: PatchTaskCommandHandler,
+      useFactory(taskRepository: TaskRepository) {
+        return new PatchTaskCommandHandler(taskRepository);
+      },
+      inject: [TASK_REPOSITORY],
+    },
+    {
+      provide: DeleteTaskCommandHandler,
+      useFactory(taskRepository: TaskRepository) {
+        return new DeleteTaskCommandHandler(taskRepository);
       },
       inject: [TASK_REPOSITORY],
     },
@@ -194,6 +242,9 @@ import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEven
       provide: COMMAND_BUS,
       useFactory(
         createTaskCommandHandler: CreateTaskCommandHandler,
+        updateTaskCommandHandler: UpdateTaskCommandHandler,
+        patchTaskCommandHandler: PatchTaskCommandHandler,
+        deleteTaskCommandHandler: DeleteTaskCommandHandler,
         scheduleTaskReminderCommandHandler: ScheduleTaskReminderCommandHandler,
         enqueueCompletedTasksReportCommandHandler: EnqueueCompletedTasksReportCommandHandler,
         processAsyncJobsHandler: ProcessAsyncJobsHandler,
@@ -204,6 +255,21 @@ import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEven
             kind: CREATE_TASK_COMMAND,
             execute: (command: Command) =>
               createTaskCommandHandler.execute(command as CreateTaskCommand),
+          },
+          {
+            kind: UPDATE_TASK_COMMAND,
+            execute: (command: Command) =>
+              updateTaskCommandHandler.execute(command as UpdateTaskCommand),
+          },
+          {
+            kind: PATCH_TASK_COMMAND,
+            execute: (command: Command) =>
+              patchTaskCommandHandler.execute(command as PatchTaskCommand),
+          },
+          {
+            kind: DELETE_TASK_COMMAND,
+            execute: (command: Command) =>
+              deleteTaskCommandHandler.execute(command as DeleteTaskCommand),
           },
           {
             kind: SCHEDULE_TASK_REMINDER_COMMAND,
@@ -238,6 +304,9 @@ import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEven
       },
       inject: [
         CreateTaskCommandHandler,
+        UpdateTaskCommandHandler,
+        PatchTaskCommandHandler,
+        DeleteTaskCommandHandler,
         ScheduleTaskReminderCommandHandler,
         EnqueueCompletedTasksReportCommandHandler,
         ProcessAsyncJobsHandler,
@@ -248,6 +317,7 @@ import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEven
       provide: QUERY_BUS,
       useFactory(
         listTasksQueryHandler: ListTasksQueryHandler,
+        findTasksByStatusQueryHandler: FindTasksByStatusQueryHandler,
         findTaskByIdQueryHandler: FindTaskByIdQueryHandler,
       ): QueryBus {
         const bindings: QueryHandlerBinding[] = [
@@ -261,10 +331,21 @@ import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEven
             execute: (query: Query) =>
               findTaskByIdQueryHandler.execute(query as FindTaskByIdQuery),
           },
+          {
+            kind: FIND_TASKS_BY_STATUS_QUERY,
+            execute: (query: Query) =>
+              findTasksByStatusQueryHandler.execute(
+                query as FindTasksByStatusQuery,
+              ),
+          },
         ];
         return new InProcessQueryBus(bindings);
       },
-      inject: [ListTasksQueryHandler, FindTaskByIdQueryHandler],
+      inject: [
+        ListTasksQueryHandler,
+        FindTasksByStatusQueryHandler,
+        FindTaskByIdQueryHandler,
+      ],
     },
   ],
   exports: [COMMAND_BUS, QUERY_BUS, EVENT_BUS],

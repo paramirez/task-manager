@@ -1,24 +1,39 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Inject,
   NotFoundException,
+  Patch,
+  Put,
   Param,
   Post,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { COMMAND_BUS, QUERY_BUS } from '@/shared/cqrs/CqrsTypes';
 import type { CommandBus, QueryBus } from '@/shared/cqrs/CqrsTypes';
+import { Result } from '@/shared/core/result';
 import { CREATE_TASK_COMMAND } from '@/modules/task/application/commands/create-task/CreateTaskCommand';
 import { FIND_TASK_BY_ID_QUERY } from '@/modules/task/application/queries/find-task-by-id/FindTaskByIdQuery';
+import { FIND_TASKS_BY_STATUS_QUERY } from '@/modules/task/application/queries/find-tasks-by-status/FindTasksByStatusQuery';
 import { FindTaskByIdQuery } from '@/modules/task/application/queries/find-task-by-id/FindTaskByIdQuery';
+import { FindTasksByStatusQuery } from '@/modules/task/application/queries/find-tasks-by-status/FindTasksByStatusQuery';
 import { LIST_TASKS_QUERY } from '@/modules/task/application/queries/list-tasks/ListTasksQuery';
 import { ListTasksQuery } from '@/modules/task/application/queries/list-tasks/ListTasksQuery';
 import { Task } from '@/modules/task/domain/Task';
 import { CreateTaskCommand } from '@/modules/task/application/commands/create-task/CreateTaskCommand';
+import { UPDATE_TASK_COMMAND } from '@/modules/task/application/commands/update-task/UpdateTaskCommand';
+import { UpdateTaskCommand } from '@/modules/task/application/commands/update-task/UpdateTaskCommand';
+import { PATCH_TASK_COMMAND } from '@/modules/task/application/commands/patch-task/PatchTaskCommand';
+import { PatchTaskCommand } from '@/modules/task/application/commands/patch-task/PatchTaskCommand';
+import { DELETE_TASK_COMMAND } from '@/modules/task/application/commands/delete-task/DeleteTaskCommand';
+import { DeleteTaskCommand } from '@/modules/task/application/commands/delete-task/DeleteTaskCommand';
 import type {
   CreateTaskDTO,
+  PatchTaskDTO,
   TaskDTO,
+  UpdateTaskDTO,
 } from '@/modules/task/infrastructure/http/dto/TaskDto';
 
 @Controller({
@@ -52,6 +67,16 @@ export class TaskController {
     return tasks.value.map((task) => task.toPrimitives());
   }
 
+  @Get('status/:status')
+  async getByStatus(@Param('status') status: string): Promise<TaskDTO[]> {
+    const tasks = await this.queryBus.execute<Task[], FindTasksByStatusQuery>({
+      kind: FIND_TASKS_BY_STATUS_QUERY,
+      status,
+    });
+    if (!tasks.ok) throw tasks.error;
+    return tasks.value.map((task) => task.toPrimitives());
+  }
+
   @Get(':id')
   async getById(@Param('id') id: string): Promise<TaskDTO> {
     const taskResult = await this.queryBus.execute<
@@ -68,5 +93,62 @@ export class TaskController {
     if (!task) throw new NotFoundException();
 
     return task.toPrimitives();
+  }
+
+  @Put(':id')
+  async updateTask(
+    @Param('id') id: string,
+    @Body() body: UpdateTaskDTO,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<void, UpdateTaskCommand>({
+      kind: UPDATE_TASK_COMMAND,
+      id,
+      title: body.title,
+      status: body.status,
+      description: body.description,
+      assignedTo: body.assignedTo,
+      dueDate: body.dueDate,
+    });
+
+    this.throwIfTaskMutationFailed(result);
+  }
+
+  @Patch(':id')
+  async patchTask(
+    @Param('id') id: string,
+    @Body() body: PatchTaskDTO,
+  ): Promise<void> {
+    const result = await this.commandBus.execute<void, PatchTaskCommand>({
+      kind: PATCH_TASK_COMMAND,
+      id,
+      ...(body.title !== undefined ? { title: body.title } : {}),
+      ...(body.status !== undefined ? { status: body.status } : {}),
+      ...(body.description !== undefined
+        ? { description: body.description }
+        : {}),
+      ...(body.assignedTo !== undefined ? { assignedTo: body.assignedTo } : {}),
+      ...(body.dueDate !== undefined ? { dueDate: body.dueDate } : {}),
+    });
+
+    this.throwIfTaskMutationFailed(result);
+  }
+
+  @Delete(':id')
+  async deleteTask(@Param('id') id: string): Promise<void> {
+    const result = await this.commandBus.execute<void, DeleteTaskCommand>({
+      kind: DELETE_TASK_COMMAND,
+      id,
+    });
+    this.throwIfTaskMutationFailed(result);
+  }
+
+  private throwIfTaskMutationFailed(result: Result<void, Error>) {
+    if (result.ok) return;
+    const error = result.error;
+    if (error.message === 'TASK_NOT_FOUND') throw new NotFoundException();
+    if (error.message === 'PATCH_PAYLOAD_EMPTY') {
+      throw new UnprocessableEntityException(error.message);
+    }
+    throw error;
   }
 }

@@ -22,6 +22,36 @@ class InMemoryTaskRepository implements TaskRepository {
   findAll() {
     return Promise.resolve(Result.ok<Task[], Error>(this.tasks));
   }
+
+  update(task: Task) {
+    const index = this.tasks.findIndex((candidate) => candidate.id === task.id);
+    if (index < 0)
+      return Promise.resolve(
+        Result.fail<Task, Error>(new Error('TASK_NOT_FOUND')),
+      );
+    this.tasks[index] = task;
+    return Promise.resolve(Result.ok<Task, Error>(task));
+  }
+
+  deleteById(id: string) {
+    const currentLength = this.tasks.length;
+    const next = this.tasks.filter((candidate) => candidate.id !== id);
+    if (next.length === currentLength) {
+      return Promise.resolve(
+        Result.fail<void, Error>(new Error('TASK_NOT_FOUND')),
+      );
+    }
+    this.tasks.splice(0, this.tasks.length, ...next);
+    return Promise.resolve(Result.ok<void, Error>(undefined));
+  }
+
+  findByStatus(status: string) {
+    return Promise.resolve(
+      Result.ok<Task[], Error>(
+        this.tasks.filter((candidate) => candidate.status === status),
+      ),
+    );
+  }
 }
 
 class InMemoryEventBus implements EventBus {

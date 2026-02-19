@@ -40,13 +40,56 @@ export class TaskPostgresAdapter implements TaskRepository {
       const entities = await this.repository.find({
         order: { dueDate: 'ASC', id: 'ASC' },
       });
-      const tasks: Task[] = [];
-      for (const entity of entities) {
-        const taskResult = this.toDomain(entity);
-        if (!taskResult.ok) return Result.fail(taskResult.error);
-        tasks.push(taskResult.value);
+      return this.toDomainList(entities);
+    } catch (error) {
+      return Result.fail(error as Error);
+    }
+  }
+
+  async findByStatus(status: string): PromiseResult<Task[], Error> {
+    try {
+      const entities = await this.repository.find({
+        where: { status },
+        order: { dueDate: 'ASC', id: 'ASC' },
+      });
+      return this.toDomainList(entities);
+    } catch (error) {
+      return Result.fail(error as Error);
+    }
+  }
+
+  async update(task: Task): PromiseResult<Task, Error> {
+    try {
+      const primitive = task.toPrimitives();
+      const updateResult = await this.repository.update(
+        { id: primitive.id },
+        {
+          title: primitive.title,
+          status: primitive.status,
+          description: primitive.description ?? null,
+          assignedTo: primitive.assignedTo ?? null,
+          dueDate: primitive.dueDate ?? null,
+        },
+      );
+
+      if (!updateResult.affected) {
+        return Result.fail(new Error('TASK_NOT_FOUND'));
       }
-      return Result.ok(tasks);
+
+      return Result.ok(task);
+    } catch (error) {
+      return Result.fail(error as Error);
+    }
+  }
+
+  async deleteById(id: string): PromiseResult<void, Error> {
+    try {
+      const deleteResult = await this.repository.delete({ id });
+      if (!deleteResult.affected) {
+        return Result.fail(new Error('TASK_NOT_FOUND'));
+      }
+
+      return Result.ok(undefined);
     } catch (error) {
       return Result.fail(error as Error);
     }
@@ -63,5 +106,15 @@ export class TaskPostgresAdapter implements TaskRepository {
     });
     if (!taskResult.ok) return Result.fail(taskResult.error);
     return Result.ok(taskResult.value);
+  }
+
+  private toDomainList(entities: TaskEntity[]): PromiseResult<Task[], Error> {
+    const tasks: Task[] = [];
+    for (const entity of entities) {
+      const taskResult = this.toDomain(entity);
+      if (!taskResult.ok) return Promise.resolve(Result.fail(taskResult.error));
+      tasks.push(taskResult.value);
+    }
+    return Promise.resolve(Result.ok(tasks));
   }
 }
