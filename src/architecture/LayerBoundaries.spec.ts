@@ -42,13 +42,14 @@ function assertNoForbiddenImports(
 }
 
 describe('Layer boundaries', () => {
-  it('domain must not depend on application or infrastructure/frameworks', () => {
-    const files = collectTsFiles(join(process.cwd(), 'src/domain'));
+  it('module domain must not depend on application/infrastructure/frameworks', () => {
+    const files = collectTsFiles(join(process.cwd(), 'src/modules'));
+    const domainFiles = files.filter((file) => file.includes('/domain/'));
     assertNoForbiddenImports(
-      files,
+      domainFiles,
       [
-        /from ['"]@\/application\//,
-        /from ['"]@\/infraestructure\//,
+        /from ['"]@\/modules\/[^/]+\/application\//,
+        /from ['"]@\/modules\/[^/]+\/infrastructure\//,
         /from ['"]@nestjs\//,
         /from ['"]express['"]/,
         /from ['"]supertest['"]/,
@@ -57,12 +58,15 @@ describe('Layer boundaries', () => {
     );
   });
 
-  it('application must not depend on infrastructure/frameworks', () => {
-    const files = collectTsFiles(join(process.cwd(), 'src/application'));
+  it('module application must not depend on infrastructure/frameworks', () => {
+    const files = collectTsFiles(join(process.cwd(), 'src/modules'));
+    const applicationFiles = files.filter((file) =>
+      file.includes('/application/'),
+    );
     assertNoForbiddenImports(
-      files,
+      applicationFiles,
       [
-        /from ['"]@\/infraestructure\//,
+        /from ['"]@\/modules\/[^/]+\/infrastructure\//,
         /from ['"]@nestjs\//,
         /from ['"]express['"]/,
         /from ['"]supertest['"]/,
