@@ -1,6 +1,8 @@
 import { Result } from "@/shared/core/result";
 import { TaskStatus } from "./TaskStatus";
 import { TaskTitle } from "./TaskTitle";
+import { BusinessError } from "../errors/BusinessError";
+import { ValidationError } from "../errors/ValidationError";
 
 export class Task {
     private readonly _id: string;
@@ -65,7 +67,7 @@ export class Task {
     }
 
     complete(): Result<Task, Error> {
-        const nextOrError = this._status.markAsDone()
+        const nextOrError = this._status.markAsCompleted()
         if (!nextOrError?.isSuccess) return Result.fail(nextOrError.getErrorValue());
 
         const nextStatus = nextOrError.getValue();
@@ -84,8 +86,8 @@ export class Task {
 
 
     start(): Result<Task, Error> {
-        if (this._status.equals(TaskStatus.done()))
-            return Result.fail(new Error("TASK_ALREADY_COMPLETED"));
+        if (this._status.equals(TaskStatus.completed()))
+            return Result.fail(new BusinessError("TASK_ALREADY_COMPLETED"));
 
 
         if (this._status.equals(TaskStatus.inProgress()))
@@ -128,7 +130,7 @@ export class Task {
     }): Result<Task, Error> {
         const now = input.now ?? new Date();
         if (input.dueDate && input.dueDate.getTime() < now.getTime()) {
-            return Result.fail(new Error("TASK_DUE_DATE_IN_PAST"));
+            return Result.fail(new ValidationError("TASK_DUE_DATE_IN_PAST"));
         }
 
         return Result.ok(new Task(

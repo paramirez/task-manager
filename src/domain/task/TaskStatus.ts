@@ -1,9 +1,11 @@
 import { Result } from "@/shared/core/result";
+import { ValidationError } from "../errors/ValidationError";
+import { BusinessError } from "../errors/BusinessError";
 
 const STATUS = {
   pending: "pending",
   in_progress: "in_progress",
-  done: "done",
+  completed: "completed",
 }
 
 export class TaskStatus {
@@ -21,8 +23,8 @@ export class TaskStatus {
     return new TaskStatus(STATUS.in_progress);
   }
 
-  static done(): TaskStatus {
-    return new TaskStatus(STATUS.done);
+  static completed(): TaskStatus {
+    return new TaskStatus(STATUS.completed);
   }
 
   static create(value: string): Result<TaskStatus, Error> {
@@ -31,23 +33,23 @@ export class TaskStatus {
         return Result.ok(TaskStatus.pending());
       case STATUS.in_progress:
         return Result.ok(TaskStatus.inProgress());
-      case STATUS.done:
-        return Result.ok(TaskStatus.done());
+      case STATUS.completed:
+        return Result.ok(TaskStatus.completed());
       default:
-        return Result.fail(new Error("TASK_STATUS_INVALID"));
+        return Result.fail(new ValidationError("TASK_STATUS_INVALID"));
     }
   }
 
-  markAsDone(): Result<TaskStatus, Error> {
-    if (this._value === STATUS.done) {
+  markAsCompleted(): Result<TaskStatus, Error> {
+    if (this._value === STATUS.completed) {
       return Result.ok(this);
     }
 
     if (this._value === STATUS.pending || this._value === STATUS.in_progress) {
-      return Result.ok(TaskStatus.done());
+      return Result.ok(TaskStatus.completed());
     }
 
-    return Result.fail(new Error("TASK_INVALID_STATUS_TRANSITION"));
+    return Result.fail(new BusinessError("TASK_INVALID_STATUS_TRANSITION"));
   }
 
   equals(other: TaskStatus): boolean {
