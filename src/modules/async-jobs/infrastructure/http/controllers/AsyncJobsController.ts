@@ -4,21 +4,14 @@ import { PROCESS_ASYNC_JOBS_COMMAND } from '@/modules/async-jobs/application/com
 import { ProcessAsyncJobsCommand } from '@/modules/async-jobs/application/commands/process-async-jobs/ProcessAsyncJobsCommand';
 import { SCHEDULE_TASK_REMINDER_COMMAND } from '@/modules/async-jobs/application/commands/schedule-task-reminder/ScheduleTaskReminderCommand';
 import { ScheduleTaskReminderCommand } from '@/modules/async-jobs/application/commands/schedule-task-reminder/ScheduleTaskReminderCommand';
+import {
+  EnqueueReportDto,
+  ProcessJobsDto,
+  ScheduleReminderDto,
+} from '@/modules/async-jobs/infrastructure/http/dto/AsyncJobsDto';
 import { Body, Controller, Inject, Param, Post } from '@nestjs/common';
 import { COMMAND_BUS } from '@/shared/cqrs/CqrsTypes';
 import type { CommandBus } from '@/shared/cqrs/CqrsTypes';
-
-interface ScheduleReminderDto {
-  minutesBeforeDueDate?: number;
-}
-
-interface EnqueueReportDto {
-  requestedBy?: string;
-}
-
-interface ProcessJobsDto {
-  limit?: number;
-}
 
 @Controller({
   path: 'jobs',

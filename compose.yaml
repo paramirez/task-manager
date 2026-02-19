@@ -1,4 +1,59 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment: &app_env
+      NODE_ENV: production
+      PORT: 3000
+      WORKER_ENABLED: "false"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: app
+      DB_PASSWORD: app
+      DB_NAME: appdb
+      DB_SYNCHRONIZE: "true"
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_ENDPOINT: http://localstack:4566
+      SQS_QUEUE_NAME: task-events
+      ASYNC_JOBS_SQS_QUEUE_NAME: async-jobs
+      ASYNC_JOBS_POLL_INTERVAL_MS: 30000
+      ASYNC_JOBS_BATCH_SIZE: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      <<: *app_env
+      PORT: 3001
+      WORKER_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
   postgres:
     image: postgres:17
     environment:
@@ -14,6 +69,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
   localstack:
     image: localstack/localstack:3
     environment:

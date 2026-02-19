@@ -7,6 +7,7 @@ import { OutboxModule } from '@/modules/outbox/infrastructure/outbox.module';
 import { AsyncJobsModule } from '@/modules/async-jobs/infrastructure/async-jobs.module';
 import { NotificationModule } from '@/modules/notification/infrastructure/notification.module';
 import { ReportingModule } from '@/modules/reporting/infrastructure/reporting.module';
+import { AsyncJobsWorker } from '@/bootstrap/workers/AsyncJobsWorker';
 
 @Module({
   imports: [
@@ -19,5 +20,6 @@ import { ReportingModule } from '@/modules/reporting/infrastructure/reporting.mo
     AsyncJobsModule,
     CqrsModule,
   ],
+  providers: [AsyncJobsWorker],
 })
 export class AppModule {}

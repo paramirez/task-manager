@@ -29,12 +29,15 @@ import { PATCH_TASK_COMMAND } from '@/modules/task/application/commands/patch-ta
 import { PatchTaskCommand } from '@/modules/task/application/commands/patch-task/PatchTaskCommand';
 import { DELETE_TASK_COMMAND } from '@/modules/task/application/commands/delete-task/DeleteTaskCommand';
 import { DeleteTaskCommand } from '@/modules/task/application/commands/delete-task/DeleteTaskCommand';
-import type {
+import { SCHEDULE_TASK_REMINDER_COMMAND } from '@/modules/async-jobs/application/commands/schedule-task-reminder/ScheduleTaskReminderCommand';
+import { ScheduleTaskReminderCommand } from '@/modules/async-jobs/application/commands/schedule-task-reminder/ScheduleTaskReminderCommand';
+import {
   CreateTaskDTO,
   PatchTaskDTO,
-  TaskDTO,
+  ScheduleTaskDTO,
   UpdateTaskDTO,
 } from '@/modules/task/infrastructure/http/dto/TaskDto';
+import type { TaskDTO } from '@/modules/task/infrastructure/http/dto/TaskDto';
 
 @Controller({
   path: 'tasks',
@@ -140,6 +143,33 @@ export class TaskController {
       id,
     });
     this.throwIfTaskMutationFailed(result);
+  }
+
+  @Post(':id/schedule')
+  async scheduleTask(
+    @Param('id') id: string,
+    @Body() body: ScheduleTaskDTO,
+  ): Promise<{ jobId: string }> {
+    const result = await this.commandBus.execute<
+      string,
+      ScheduleTaskReminderCommand
+    >({
+      kind: SCHEDULE_TASK_REMINDER_COMMAND,
+      taskId: id,
+      minutesBeforeDueDate: body.minutesBeforeDueDate,
+    });
+    if (!result.ok) {
+      if (result.error.message === 'TASK_NOT_FOUND')
+        throw new NotFoundException();
+      if (result.error.message === 'TASK_DUE_DATE_REQUIRED') {
+        throw new UnprocessableEntityException(result.error.message);
+      }
+      if (result.error.message === 'INVALID_MINUTES_BEFORE_DUE_DATE') {
+        throw new UnprocessableEntityException(result.error.message);
+      }
+      throw result.error;
+    }
+    return { jobId: result.value };
   }
 
   private throwIfTaskMutationFailed(result: Result<void, Error>) {

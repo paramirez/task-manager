@@ -1,6 +1,5 @@
 import { Global, Module } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { AsyncJobEntity } from '@/modules/async-jobs/infrastructure/queue/postgres/AsyncJobEntity';
 import { OutboxMessageEntity } from '@/modules/outbox/infrastructure/persistence/postgres/OutboxMessageEntity';
 import { CompletedTasksReportEntity } from '@/modules/reporting/infrastructure/persistence/postgres/CompletedTasksReportEntity';
 import { TaskEntity } from '@/modules/task/infrastructure/persistence/postgres/TaskEntity';
@@ -15,12 +14,7 @@ async function createDataSource(): Promise<DataSource> {
     username: process.env.DB_USER ?? 'app',
     password: process.env.DB_PASSWORD ?? 'app',
     database: process.env.DB_NAME ?? 'appdb',
-    entities: [
-      TaskEntity,
-      OutboxMessageEntity,
-      AsyncJobEntity,
-      CompletedTasksReportEntity,
-    ],
+    entities: [TaskEntity, OutboxMessageEntity, CompletedTasksReportEntity],
     synchronize: process.env.DB_SYNCHRONIZE !== 'false',
   });
 

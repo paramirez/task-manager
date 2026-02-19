@@ -1,98 +1,159 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Task Manager API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API de gestión de tareas con arquitectura modular (dominio/aplicación/infra), CQRS y Result pattern.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Incluye:
+- CRUD de tareas.
+- Programación de recordatorios asíncronos.
+- Publicación de eventos de dominio a SQS (outbox).
+- Procesamiento asíncrono en un proceso separado (`worker`) para aproximación de microservicios.
 
-## Description
+## Arquitectura de ejecución (estilo microservicios)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- `api`: expone endpoints HTTP.
+- `worker`: procesa cola asíncrona en segundo plano.
+- `postgres`: persistencia relacional.
+- `localstack`: emulación local de SQS.
 
-## Project setup
+`api` y `worker` comparten código (monorepo/monolito modular), pero corren como servicios separados.
+
+## Requisitos
+
+- Node.js 22+
+- npm 10+
+- Docker + Docker Compose v2
+
+## Instalación local (sin Docker)
 
 ```bash
-$ npm install
+npm install
+cp .env.example .env
+npm run build
+npm run start:prod
 ```
 
-## Compile and run the project
+## Variables de entorno
+
+Ejemplo base en `.env.example`.
+
+- `PORT`: puerto HTTP de la app.
+- `WORKER_ENABLED`: `true` activa el worker asíncrono en el proceso.
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SYNCHRONIZE`: conexión Postgres.
+- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: credenciales SQS.
+- `SQS_ENDPOINT`: endpoint SQS (LocalStack local: `http://localhost:4566`).
+- `SQS_QUEUE_NAME`: cola para eventos de tareas (`task-events`).
+- `ASYNC_JOBS_SQS_QUEUE_NAME`: cola de trabajos asíncronos (`async-jobs`).
+- `ASYNC_JOBS_POLL_INTERVAL_MS`: intervalo de polling del worker.
+- `ASYNC_JOBS_BATCH_SIZE`: tamaño de lote por ciclo.
+
+## Docker
+
+### Construir imagen
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+docker build -t task-manager:latest .
 ```
 
-## Run tests
+### Ejecutar stack completo
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+docker compose -f compose.yaml up -d --build
 ```
 
-## Deployment
+Servicios:
+- API: `http://localhost:3000`
+- Postgres: `localhost:5432`
+- LocalStack (SQS): `http://localhost:4566`
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Logs
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+docker compose -f compose.yaml logs -f api worker
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Apagar stack
 
-## Resources
+```bash
+docker compose -f compose.yaml down
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## API
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Tasks
 
-## Support
+- `POST /tasks`
+  - Crea tarea.
+  - Body:
+```json
+{
+  "title": "Preparar release",
+  "description": "Checklist final",
+  "status": "pending",
+  "assignedTo": "rohan",
+  "dueDate": "2026-02-25T15:00:00.000Z"
+}
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+- `GET /tasks`
+  - Lista todas las tareas.
 
-## Stay in touch
+- `GET /tasks/{id}`
+  - Obtiene una tarea por ID.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- `PUT /tasks/{id}`
+  - Reemplazo completo de tarea.
+  - Requiere `title` y `status`.
 
-## License
+- `PATCH /tasks/{id}`
+  - Actualización parcial.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- `DELETE /tasks/{id}`
+  - Elimina tarea por ID.
+
+- `GET /tasks/status/{status}`
+  - Lista por estado (`pending`, `in_progress`, `completed`).
+
+- `POST /tasks/{id}/schedule`
+  - Programa trabajo asíncrono de recordatorio según `dueDate`.
+  - Body opcional:
+```json
+{
+  "minutesBeforeDueDate": 30
+}
+```
+
+### Jobs (operación interna / soporte)
+
+- `POST /jobs/task-reminders/{taskId}`
+  - Alternativa de scheduling directo.
+
+- `POST /jobs/reports/completed-tasks`
+  - Encola generación de reporte.
+
+- `POST /jobs/process`
+  - Fuerza procesamiento manual de cola (útil para pruebas).
+
+## Validación
+
+Se usa `ValidationPipe` global con:
+- `whitelist`
+- `forbidNonWhitelisted`
+- `transform`
+
+Los payloads inválidos retornan error 4xx.
+
+## Salud del sistema
+
+- `GET /health/live`
+- `GET /health/ready` (verifica Postgres y colas SQS requeridas)
+
+## Pruebas
+
+```bash
+npm run lint
+npm run build
+npm run test
+npm run test:e2e
+```
+
+Para `test:e2e`, necesitas Postgres y LocalStack activos.

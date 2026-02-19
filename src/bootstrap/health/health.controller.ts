@@ -3,6 +3,7 @@ import {
   SQS_CLIENT,
   SQS_QUEUE_NAME,
 } from '@/modules/notification/infrastructure/providers/SqsProviderTokens';
+import { ASYNC_JOBS_SQS_QUEUE_NAME } from '@/modules/async-jobs/infrastructure/queue/sqs/AsyncJobsSqsTokens';
 import { GetQueueUrlCommand, SQSClient } from '@aws-sdk/client-sqs';
 import {
   Controller,
@@ -17,7 +18,9 @@ export class HealthController {
   constructor(
     @Inject(DATABASE_DATASOURCE) private readonly dataSource: DataSource,
     @Inject(SQS_CLIENT) private readonly sqsClient: SQSClient,
-    @Inject(SQS_QUEUE_NAME) private readonly queueName: string,
+    @Inject(SQS_QUEUE_NAME) private readonly taskEventsQueueName: string,
+    @Inject(ASYNC_JOBS_SQS_QUEUE_NAME)
+    private readonly asyncJobsQueueName: string,
   ) {}
 
   @Get('live')
@@ -30,7 +33,10 @@ export class HealthController {
     try {
       await this.dataSource.query('SELECT 1');
       await this.sqsClient.send(
-        new GetQueueUrlCommand({ QueueName: this.queueName }),
+        new GetQueueUrlCommand({ QueueName: this.taskEventsQueueName }),
+      );
+      await this.sqsClient.send(
+        new GetQueueUrlCommand({ QueueName: this.asyncJobsQueueName }),
       );
       return { status: 'ready' };
     } catch (error) {

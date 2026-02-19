@@ -12,6 +12,7 @@ describe('HTTP adapters (e2e)', () => {
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
     SQS_ENDPOINT: process.env.SQS_ENDPOINT,
     SQS_QUEUE_NAME: process.env.SQS_QUEUE_NAME,
+    ASYNC_JOBS_SQS_QUEUE_NAME: process.env.ASYNC_JOBS_SQS_QUEUE_NAME,
   };
 
   beforeAll(() => {
@@ -20,6 +21,7 @@ describe('HTTP adapters (e2e)', () => {
     process.env.AWS_SECRET_ACCESS_KEY ??= 'test';
     process.env.SQS_ENDPOINT ??= 'http://localhost:4566';
     process.env.SQS_QUEUE_NAME ??= 'task-events';
+    process.env.ASYNC_JOBS_SQS_QUEUE_NAME ??= 'async-jobs';
   });
 
   afterAll(() => {
@@ -36,6 +38,11 @@ describe('HTTP adapters (e2e)', () => {
     if (previousEnv.SQS_QUEUE_NAME === undefined)
       delete process.env.SQS_QUEUE_NAME;
     else process.env.SQS_QUEUE_NAME = previousEnv.SQS_QUEUE_NAME;
+    if (previousEnv.ASYNC_JOBS_SQS_QUEUE_NAME === undefined)
+      delete process.env.ASYNC_JOBS_SQS_QUEUE_NAME;
+    else
+      process.env.ASYNC_JOBS_SQS_QUEUE_NAME =
+        previousEnv.ASYNC_JOBS_SQS_QUEUE_NAME;
   });
 
   beforeEach(async () => {
@@ -85,7 +92,7 @@ describe('HTTP adapters (e2e)', () => {
       });
   });
 
-  it('/jobs/task-reminders/:taskId + /jobs/process (POST)', async () => {
+  it('/tasks/:id/schedule + /jobs/process (POST)', async () => {
     await request(app.getHttpServer())
       .post('/tasks')
       .send({
@@ -112,7 +119,7 @@ describe('HTTP adapters (e2e)', () => {
     }
 
     await request(app.getHttpServer())
-      .post(`/jobs/task-reminders/${createdTask.id}`)
+      .post(`/tasks/${createdTask.id}/schedule`)
       .send({ minutesBeforeDueDate: 10 })
       .expect(201);
 
