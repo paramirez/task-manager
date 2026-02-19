@@ -45,17 +45,17 @@ export class Task {
         assignedTo?: string;
         dueDate?: Date;
     }): Result<Task, Error> {
-        const title = TaskTitle.create(input.title);
+        const title = TaskTitle.create(input?.title);
         if (!title.isSuccess) return Result.fail(title.getErrorValue());
 
         const status = input.status ? TaskStatus.create(input.status) : Result.ok<TaskStatus, Error>(TaskStatus.pending())
-        if (!status.isSuccess) return Result.fail(status.getErrorValue());
+        if (!status.isSuccess) return Result.fail(status?.getErrorValue());
 
         const assigned = input.assignedTo?.trim() || undefined;
         const due = input.dueDate ? new Date(input.dueDate) : undefined;
 
         const task = new Task({
-            id: input.id,
+            id: input.id ?? crypto.randomUUID(),
             title: title.getValue(),
             description: input.description?.trim() || undefined,
             status: status.getValue(),
@@ -144,5 +144,16 @@ export class Task {
                     (this._dueDate ? new Date(this._dueDate) : undefined)
             }
         ));
+    }
+
+    toPrimitives() {
+        return {
+            id: this._id,
+            title: this._title.value,
+            status: this._status.value,
+            description: this._description,
+            assignedTo: this._assignedTo,
+            dueDate: this._dueDate ? new Date(this._dueDate) : undefined
+        }
     }
 }

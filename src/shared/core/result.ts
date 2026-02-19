@@ -1,7 +1,7 @@
 export class Result<T, E> {
     public isSuccess: boolean;
-    private _value?: T;
-    private _error?: E;
+    private readonly _value?: T;
+    private readonly _error?: E;
 
     private constructor(isSuccess: boolean, error?: E, value?: T) {
         this.isSuccess = isSuccess;

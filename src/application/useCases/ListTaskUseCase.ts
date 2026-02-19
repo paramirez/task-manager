@@ -1,12 +1,14 @@
+import { TaskRespository } from "@/domain/repo/TaskRepository";
 import { Task } from "@/domain/task/Task";
 import { Result } from "@/shared/core/result";
 
 export class ListTaskUseCase {
-    execute(): Result<Task[], Error> {
+    constructor(private readonly taskRepository: TaskRespository) {}
 
-        return Result.ok([Task.create({
-            id: "1",
-            title: "Pepe",
-        }).getValue()])
+    async execute(): Promise<Result<Task[], Error>> {
+        const tasks = await this.taskRepository.findAll();
+        if (!tasks.isSuccess) return Result.fail(tasks.getErrorValue());
+
+        return Result.ok(tasks.getValue())
     }
 }
