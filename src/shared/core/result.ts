@@ -1,29 +1,26 @@
-export class Result<T, E> {
-    public isSuccess: boolean;
-    private readonly _value?: T;
-    private readonly _error?: E;
+export type Ok<T> = { ok: true; value: T };
+export type Err<E> = { ok: false; error: E };
+export type Result<T, E> = Ok<T> | Err<E>;
+export type PromiseResult<T, E> = Promise<Result<T, E>>;
 
-    private constructor(isSuccess: boolean, error?: E, value?: T) {
-        this.isSuccess = isSuccess;
-        this._value = value;
-        this._error = error;
-    }
-
-    public static ok<U, F>(value?: U): Result<U, F> {
-        return new Result<U, F>(true, undefined, value);
-    }
-
-    public static fail<U, F>(error?: F): Result<U, F> {
-        return new Result<U, F>(false, error);
-    }
-
-    public getValue(): T {
-        if (!this.isSuccess) throw new Error("Operación inválida: no se puede obtener el valor de un resultrado fallido");
-        return this._value as T;
-    }
-
-    public getErrorValue():  E {
-        if (this.isSuccess) throw new Error("Operación inválida: no se puede obtener el valor de un resultrado exitoso");
-        return this._error as E;
-    }
-}
+export const Result = {
+  ok<T, E = never>(value: T): Result<T, E> {
+    return { ok: true, value };
+  },
+  fail<T = never, E = Error>(error: E): Result<T, E> {
+    return { ok: false, error };
+  },
+  isOk<T, E>(result: Result<T, E>): result is Ok<T> {
+    return result.ok;
+  },
+  isErr<T, E>(result: Result<T, E>): result is Err<E> {
+    return !result.ok;
+  },
+  match<T, E, U>(
+    result: Result<T, E>,
+    onOk: (value: T) => U,
+    onErr: (error: E) => U,
+  ): U {
+    return result.ok ? onOk(result.value) : onErr(result.error);
+  },
+};

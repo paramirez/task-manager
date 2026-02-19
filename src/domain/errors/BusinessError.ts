@@ -1,5 +1,7 @@
-export class BusinessError extends Error {
-    constructor(msg: string) {
-        super(msg)
-    }
+import { DomainError } from './DomainError';
+
+export class BusinessError extends DomainError {
+  constructor(code: string, message = code) {
+    super(message, code);
+  }
 }

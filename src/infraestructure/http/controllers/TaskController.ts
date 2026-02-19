@@ -1,32 +1,57 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
-import { Task } from "@/domain/task/Task";
-import { CreateTaskUseCase } from "@/application/useCases/CreateTaskUseCase";
-import { ListTaskUseCase } from "@/application/useCases/ListTaskUseCase";
-import type { TaskDTO } from "@/infraestructure/http/dto/TaskDto";
+import {
+  Body,
+  Controller,
+  Get,
+  InternalServerErrorException,
+  NotFoundException,
+  Param,
+  Post,
+} from '@nestjs/common';
+import { CreateTaskCommandHandler } from '@/application/commands/create-task/CreateTaskCommandHandler';
+import { FindTaskByIdQueryHandler } from '@/application/queries/find-task-by-id/FindTaskByIdQueryHandler';
+import { ListTasksQueryHandler } from '@/application/queries/list-tasks/ListTasksQueryHandler';
+import type {
+  CreateTaskDTO,
+  TaskDTO,
+} from '@/infraestructure/http/dto/TaskDto';
 
 @Controller({
-    path: 'tasks',
-    version: '1'
+  path: 'tasks',
+  version: '1',
 })
 export class TaskController {
+  constructor(
+    private readonly listTasksQueryHandler: ListTasksQueryHandler,
+    private readonly createTaskCommandHandler: CreateTaskCommandHandler,
+    private readonly findTaskByIdQueryHandler: FindTaskByIdQueryHandler,
+  ) {}
 
-    constructor(
-        private readonly listTaskUseCase: ListTaskUseCase,
-        private readonly createTaskUseCase: CreateTaskUseCase,
-    ) {}
+  @Post()
+  async createTask(@Body() body: CreateTaskDTO): Promise<void> {
+    const createTaskResult = await this.createTaskCommandHandler.execute({
+      ...body,
+    });
+    if (!createTaskResult.ok) throw createTaskResult.error;
+  }
 
-    @Get()
-    async getTasks(): Promise<ReturnType<Task['toPrimitives']>[]> {
-        const tasks = await this.listTaskUseCase.execute();
-        if (!tasks.isSuccess) throw tasks.getErrorValue().message;
-        return tasks.getValue().map((task: Task) => task.toPrimitives());
+  @Get()
+  async getTasks(): Promise<TaskDTO[]> {
+    const tasks = await this.listTasksQueryHandler.execute();
+    if (!tasks.ok) {
+      throw new InternalServerErrorException(tasks.error.message);
     }
+    return tasks.value.map((task) => task.toPrimitives());
+  }
 
-    @Post()
-    async createTask(@Body() body: TaskDTO): Promise<void> {
-        const task = Task.create(body);
-        if (!task.isSuccess) throw task.getErrorValue();
-        const createTaskResult = await this.createTaskUseCase.execute(task.getValue());
-        if (!createTaskResult.isSuccess) throw createTaskResult.getErrorValue();
-    }
+  @Get(':id')
+  async getById(@Param('id') id: string): Promise<TaskDTO> {
+    const taskResult = await this.findTaskByIdQueryHandler.execute({ id });
+
+    if (!taskResult.ok) throw taskResult.error;
+    const task = taskResult.value;
+
+    if (!task) throw new NotFoundException();
+
+    return task.toPrimitives();
+  }
 }

@@ -1,15 +1,15 @@
-import { Result } from "@/shared/core/result";
-import { ValidationError } from "../errors/ValidationError";
-import { BusinessError } from "../errors/BusinessError";
+import { Result } from '@/shared/core/result';
+import { ValidationError } from '../errors/ValidationError';
+import { BusinessError } from '../errors/BusinessError';
 
 const STATUS = {
-  pending: "pending",
-  in_progress: "in_progress",
-  completed: "completed",
-}
+  pending: 'pending',
+  in_progress: 'in_progress',
+  completed: 'completed',
+};
 
 export class TaskStatus {
-  private constructor(private readonly _value: string) { }
+  private constructor(private readonly _value: string) {}
 
   get value() {
     return this._value;
@@ -36,7 +36,7 @@ export class TaskStatus {
       case STATUS.completed:
         return Result.ok(TaskStatus.completed());
       default:
-        return Result.fail(new ValidationError("TASK_STATUS_INVALID"));
+        return Result.fail(new ValidationError('TASK_STATUS_INVALID'));
     }
   }
 
@@ -49,7 +49,7 @@ export class TaskStatus {
       return Result.ok(TaskStatus.completed());
     }
 
-    return Result.fail(new BusinessError("TASK_INVALID_STATUS_TRANSITION"));
+    return Result.fail(new BusinessError('TASK_INVALID_STATUS_TRANSITION'));
   }
 
   equals(other: TaskStatus): boolean {
