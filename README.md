@@ -5,18 +5,37 @@ API de gestión de tareas con arquitectura modular (dominio/aplicación/infra), 
 Incluye:
 - CRUD de tareas.
 - Programación de recordatorios asíncronos.
-- Publicación de eventos de dominio a SNS (outbox) https://microservices.io/patterns/data/transactional-outbox.html.
-- Procesamiento asíncrono en un proceso separado (`worker`) para aproximación de microservicios.
+- Procesamiento asíncrono en un proceso separado (`worker`) usando SQS.
 
 ## Arquitectura de ejecución (estilo microservicios)
 
 - `api`: expone endpoints HTTP.
 - `worker`: procesa cola asíncrona en segundo plano.
-- `task-events-consumer`: microservicio consumidor de eventos de tarea.
 - `mongo`: persistencia principal.
-- `localstack`: emulación local de SNS/SQS.
+- `localstack`: emulación local de SQS.
 
 `api` y `worker` comparten código (monorepo/monolito modular), pero corren como servicios separados.
+
+## Arquitectura y patrones de diseño
+
+La solución implementa una arquitectura claramente definida y patrones explícitos:
+
+- Arquitectura en capas:
+  - `domain`: reglas de negocio y entidades.
+  - `application`: casos de uso (commands/queries/handlers).
+  - `infrastructure`: adaptadores HTTP, MongoDB y SQS.
+- CQRS in-process:
+  - Separación de comandos (mutaciones) y queries (lecturas) mediante `CommandBus` y `QueryBus`.
+- Repository Pattern:
+  - Persistencia desacoplada por puertos (`TaskRepository`, `TaskReportRepository`) e implementaciones (`TaskMongoAdapter`, `TaskReportMongoAdapter`).
+- Adapter Pattern:
+  - Integraciones externas encapsuladas en adaptadores (`SqsAsyncJobQueue`, adaptadores Mongo).
+- Result Pattern:
+  - Manejo explícito de éxito/error sin excepciones como control de flujo en la capa de aplicación.
+- Worker Pattern:
+  - Procesamiento asíncrono desacoplado en `worker`, con polling de cola SQS y ejecución de jobs.
+- Dependency Injection (NestJS):
+  - Wiring por tokens/proveedores para mantener bajo acoplamiento entre capas.
 
 ## Requisitos
 
@@ -40,17 +59,11 @@ Ejemplo base en `.env.example`.
 - `PORT`: puerto HTTP de la app.
 - `WORKER_ENABLED`: `true` activa el worker asíncrono en el proceso.
 - `MONGO_URI`, `MONGO_DB`, `MONGO_SERVER_SELECTION_TIMEOUT_MS`: conexión MongoDB.
-- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: credenciales AWS para SNS/SQS.
-- `SNS_ENDPOINT`: endpoint SNS (LocalStack local: `http://localhost:4566`).
-- `SNS_TOPIC_NAME`: tópico de eventos de tareas (`task-events`).
+- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: credenciales para SQS.
 - `SQS_ENDPOINT`: endpoint SQS (LocalStack local: `http://localhost:4566`).
 - `ASYNC_JOBS_SQS_QUEUE_NAME`: cola de trabajos asíncronos (`async-jobs`).
 - `ASYNC_JOBS_POLL_INTERVAL_MS`: intervalo de polling del worker.
 - `ASYNC_JOBS_BATCH_SIZE`: tamaño de lote por ciclo.
-- `TASK_EVENTS_CONSUMER_ENABLED`: activa consumo de eventos en proceso.
-- `TASK_EVENTS_CONSUMER_SQS_QUEUE_NAME`: cola SQS suscrita al topic SNS `task-events`.
-- `TASK_EVENTS_CONSUMER_WAIT_SECONDS`: long-poll del consumidor.
-- `TASK_EVENTS_CONSUMER_VISIBILITY_SECONDS`: visibility timeout del consumidor.
 
 ## Docker
 
@@ -69,12 +82,12 @@ docker compose -f compose.yaml up -d --build
 Servicios:
 - API: `http://localhost:3000`
 - MongoDB: `localhost:27017`
-- LocalStack (SNS/SQS): `http://localhost:4566`
+- LocalStack (SQS): `http://localhost:4566`
 
 ### Logs
 
 ```bash
-docker compose -f compose.yaml logs -f api worker task-events-consumer
+docker compose -f compose.yaml logs -f api worker
 ```
 
 ### Apagar stack
@@ -139,12 +152,6 @@ docker compose -f compose.yaml down
 - `POST /jobs/process`
   - Fuerza procesamiento manual de cola (útil para pruebas).
 
-### Evento de actualización
-
-- Al actualizar una tarea (`PUT`/`PATCH`), dominio emite `task.updated`.
-- El outbox lo publica en SNS (`task-events`).
-- `task-events-consumer` recibe por SQS y ejecuta acciones de negocio desacopladas.
-
 ## Validación
 
 Se usa `ValidationPipe` global con:
@@ -157,7 +164,24 @@ Los payloads inválidos retornan error 4xx.
 ## Salud del sistema
 
 - `GET /health/live`
-- `GET /health/ready` (verifica MongoDB, tópico SNS y cola SQS requeridos)
+- `GET /health/ready` (verifica MongoDB y cola SQS requerida)
+
+## Diagramas UML y C4
+
+Los diagramas de arquitectura y flujos están en `uml/`:
+
+- Secuencia:
+  - `uml/secuencia-01-crear-tarea.puml`
+  - `uml/secuencia-02-programar-recordatorio.puml`
+  - `uml/secuencia-03-encolar-reporte.puml`
+  - `uml/secuencia-04-worker-procesar-jobs.puml`
+- Componentes:
+  - `uml/componentes.puml`
+- C4:
+  - Nivel 1 (Contexto): `uml/c4-nivel1-contexto.puml`
+  - Nivel 2 (Contenedores): `uml/c4-nivel2-contenedores.puml`
+  - Nivel 3 (Componentes API): `uml/c4-nivel3-api-componentes.puml`
+  - Nivel 3 (Componentes Worker): `uml/c4-nivel3-worker-componentes.puml`
 
 ## Pruebas
 
