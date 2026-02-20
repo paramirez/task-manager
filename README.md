@@ -1,6 +1,6 @@
 # Task Manager API
 
-API de gestión de tareas con arquitectura modular (dominio/aplicación/infra), CQRS y Result pattern.
+API de gestión de tareas con **arquitectura hexagonal (ports & adapters)**, organizada en capas (`domain`/`application`/`infrastructure`), CQRS y Result pattern.
 
 Incluye:
 - CRUD de tareas.
@@ -20,10 +20,10 @@ Incluye:
 
 La solución implementa una arquitectura claramente definida y patrones explícitos:
 
-- Arquitectura en capas:
-  - `domain`: reglas de negocio y entidades.
-  - `application`: casos de uso (commands/queries/handlers).
-  - `infrastructure`: adaptadores HTTP, MongoDB y SQS.
+- Arquitectura hexagonal (ports & adapters) organizada por capas:
+  - `domain`: núcleo de negocio y reglas de dominio.
+  - `application`: casos de uso y puertos de entrada/salida.
+  - `infrastructure`: adaptadores concretos (HTTP, MongoDB, SQS).
 - CQRS in-process:
   - Separación de comandos (mutaciones) y queries (lecturas) mediante `CommandBus` y `QueryBus`.
 - Repository Pattern:
