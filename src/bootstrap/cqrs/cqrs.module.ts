@@ -88,6 +88,8 @@ import {
 } from '@/modules/async-jobs/application/commands/process-async-jobs/ProcessAsyncJobsCommand';
 import { EnqueueTaskCreatedOutboxEventHandler } from '@/modules/outbox/application/handlers/EnqueueTaskCreatedOutboxEventHandler';
 import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEvent';
+import { EnqueueTaskUpdatedOutboxEventHandler } from '@/modules/outbox/application/handlers/EnqueueTaskUpdatedOutboxEventHandler';
+import { TASK_UPDATED_EVENT } from '@/modules/task/domain/events/TaskUpdatedEvent';
 import { UpdateTaskCommandHandler } from '@/modules/task/application/commands/update-task/UpdateTaskCommandHandler';
 import {
   UPDATE_TASK_COMMAND,
@@ -122,9 +124,17 @@ import {
       inject: [OUTBOX_REPOSITORY],
     },
     {
+      provide: EnqueueTaskUpdatedOutboxEventHandler,
+      useFactory(outboxRepository: OutboxRepository) {
+        return new EnqueueTaskUpdatedOutboxEventHandler(outboxRepository);
+      },
+      inject: [OUTBOX_REPOSITORY],
+    },
+    {
       provide: EVENT_BUS,
       useFactory(
         enqueueTaskCreatedOutboxEventHandler: EnqueueTaskCreatedOutboxEventHandler,
+        enqueueTaskUpdatedOutboxEventHandler: EnqueueTaskUpdatedOutboxEventHandler,
       ): EventBus {
         const bindings: EventHandlerBinding[] = [
           {
@@ -132,10 +142,18 @@ import {
             handle: (event) =>
               enqueueTaskCreatedOutboxEventHandler.handle(event as never),
           },
+          {
+            kind: TASK_UPDATED_EVENT,
+            handle: (event) =>
+              enqueueTaskUpdatedOutboxEventHandler.handle(event as never),
+          },
         ];
         return new InProcessEventBus(bindings);
       },
-      inject: [EnqueueTaskCreatedOutboxEventHandler],
+      inject: [
+        EnqueueTaskCreatedOutboxEventHandler,
+        EnqueueTaskUpdatedOutboxEventHandler,
+      ],
     },
     {
       provide: CreateTaskCommandHandler,
@@ -167,17 +185,17 @@ import {
     },
     {
       provide: UpdateTaskCommandHandler,
-      useFactory(taskRepository: TaskRepository) {
-        return new UpdateTaskCommandHandler(taskRepository);
+      useFactory(taskRepository: TaskRepository, eventBus: EventBus) {
+        return new UpdateTaskCommandHandler(taskRepository, eventBus);
       },
-      inject: [TASK_REPOSITORY],
+      inject: [TASK_REPOSITORY, EVENT_BUS],
     },
     {
       provide: PatchTaskCommandHandler,
-      useFactory(taskRepository: TaskRepository) {
-        return new PatchTaskCommandHandler(taskRepository);
+      useFactory(taskRepository: TaskRepository, eventBus: EventBus) {
+        return new PatchTaskCommandHandler(taskRepository, eventBus);
       },
-      inject: [TASK_REPOSITORY],
+      inject: [TASK_REPOSITORY, EVENT_BUS],
     },
     {
       provide: DeleteTaskCommandHandler,

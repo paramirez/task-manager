@@ -104,14 +104,17 @@ export class TaskMongoAdapter implements TaskRepository {
   }
 
   private toDomain(document: TaskDocument): Result<Task, Error> {
-    return Task.create({
-      id: document.id,
-      title: document.title,
-      status: document.status,
-      description: document.description,
-      assignedTo: document.assignedTo,
-      dueDate: document.dueDate,
-    });
+    return Task.create(
+      {
+        id: document.id,
+        title: document.title,
+        status: document.status,
+        description: document.description,
+        assignedTo: document.assignedTo,
+        dueDate: document.dueDate,
+      },
+      { emitCreatedEvent: false },
+    );
   }
 
   private toDomainList(

@@ -14,10 +14,15 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       SQS_ENDPOINT: http://localstack:4566
-      SQS_QUEUE_NAME: task-events
+      SNS_ENDPOINT: http://localstack:4566
+      SNS_TOPIC_NAME: task-events
       ASYNC_JOBS_SQS_QUEUE_NAME: async-jobs
       ASYNC_JOBS_POLL_INTERVAL_MS: 30000
       ASYNC_JOBS_BATCH_SIZE: 10
+      TASK_EVENTS_CONSUMER_ENABLED: "false"
+      TASK_EVENTS_CONSUMER_SQS_QUEUE_NAME: task-events-consumer
+      TASK_EVENTS_CONSUMER_WAIT_SECONDS: 10
+      TASK_EVENTS_CONSUMER_VISIBILITY_SECONDS: 60
     depends_on:
       mongo:
         condition: service_healthy
@@ -45,6 +50,22 @@ services:
       <<: *app_env
       PORT: 3001
       WORKER_ENABLED: "true"
+      TASK_EVENTS_CONSUMER_ENABLED: "false"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
+  task-events-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      <<: *app_env
+      PORT: 3002
+      WORKER_ENABLED: "false"
+      TASK_EVENTS_CONSUMER_ENABLED: "true"
     depends_on:
       mongo:
         condition: service_healthy
@@ -68,7 +89,7 @@ services:
   localstack:
     image: localstack/localstack:3
     environment:
-      SERVICES: sqs
+      SERVICES: sqs,sns
       AWS_DEFAULT_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test

@@ -8,6 +8,7 @@ import { AsyncJobsModule } from '@/modules/async-jobs/infrastructure/async-jobs.
 import { NotificationModule } from '@/modules/notification/infrastructure/notification.module';
 import { ReportingModule } from '@/modules/reporting/infrastructure/reporting.module';
 import { AsyncJobsWorker } from '@/bootstrap/workers/AsyncJobsWorker';
+import { TaskEventsConsumerModule } from '@/modules/task-events-consumer/infrastructure/task-events-consumer.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AsyncJobsWorker } from '@/bootstrap/workers/AsyncJobsWorker';
     TaskModule,
     OutboxModule,
     AsyncJobsModule,
+    TaskEventsConsumerModule,
     CqrsModule,
   ],
   providers: [AsyncJobsWorker],

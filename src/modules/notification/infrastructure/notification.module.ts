@@ -2,13 +2,15 @@ import { Module } from '@nestjs/common';
 import { TASK_EVENT_PUBLISHER } from '@/modules/notification/application/ports/TaskEventPublisher';
 import { TASK_REMINDER_NOTIFIER } from '@/modules/notification/application/ports/TaskReminderNotifier';
 import { NoopTaskReminderNotifier } from '@/modules/notification/infrastructure/providers/NoopTaskReminderNotifier';
+import { SQS_CLIENT } from '@/modules/notification/infrastructure/providers/SqsProviderTokens';
 import {
-  SQS_CLIENT,
-  SQS_QUEUE_NAME,
-  SQS_QUEUE_URL,
-} from '@/modules/notification/infrastructure/providers/SqsProviderTokens';
-import { SqsTaskEventPublisher } from '@/modules/notification/infrastructure/providers/SqsTaskEventPublisher';
+  SNS_CLIENT,
+  SNS_TOPIC_ARN,
+  SNS_TOPIC_NAME,
+} from '@/modules/notification/infrastructure/providers/SnsProviderTokens';
+import { SnsTaskEventPublisher } from '@/modules/notification/infrastructure/providers/SnsTaskEventPublisher';
 import { SQSClient } from '@aws-sdk/client-sqs';
+import { SNSClient } from '@aws-sdk/client-sns';
 
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -23,7 +25,7 @@ function required(name: string, fallback?: string): string {
       useFactory() {
         return new SQSClient({
           region: required('AWS_REGION', 'us-east-1'),
-          endpoint: required('SQS_ENDPOINT'),
+          endpoint: required('SQS_ENDPOINT', process.env.AWS_ENDPOINT),
           credentials: {
             accessKeyId: required('AWS_ACCESS_KEY_ID'),
             secretAccessKey: required('AWS_SECRET_ACCESS_KEY'),
@@ -32,23 +34,39 @@ function required(name: string, fallback?: string): string {
       },
     },
     {
-      provide: SQS_QUEUE_NAME,
+      provide: SNS_CLIENT,
       useFactory() {
-        return required('SQS_QUEUE_NAME', 'task-events');
+        return new SNSClient({
+          region: required('AWS_REGION', 'us-east-1'),
+          endpoint: required(
+            'SNS_ENDPOINT',
+            process.env.SQS_ENDPOINT ?? process.env.AWS_ENDPOINT,
+          ),
+          credentials: {
+            accessKeyId: required('AWS_ACCESS_KEY_ID'),
+            secretAccessKey: required('AWS_SECRET_ACCESS_KEY'),
+          },
+        });
       },
     },
     {
-      provide: SQS_QUEUE_URL,
+      provide: SNS_TOPIC_NAME,
       useFactory() {
-        return process.env.SQS_QUEUE_URL;
+        return required('SNS_TOPIC_NAME', 'task-events');
+      },
+    },
+    {
+      provide: SNS_TOPIC_ARN,
+      useFactory() {
+        return process.env.SNS_TOPIC_ARN;
       },
     },
     {
       provide: TASK_EVENT_PUBLISHER,
-      useFactory(sqsClient: SQSClient, queueName: string, queueUrl?: string) {
-        return new SqsTaskEventPublisher(sqsClient, queueName, queueUrl);
+      useFactory(snsClient: SNSClient, topicName: string, topicArn?: string) {
+        return new SnsTaskEventPublisher(snsClient, topicName, topicArn);
       },
-      inject: [SQS_CLIENT, SQS_QUEUE_NAME, SQS_QUEUE_URL],
+      inject: [SNS_CLIENT, SNS_TOPIC_NAME, SNS_TOPIC_ARN],
     },
     {
       provide: TASK_REMINDER_NOTIFIER,
@@ -59,8 +77,9 @@ function required(name: string, fallback?: string): string {
     TASK_EVENT_PUBLISHER,
     TASK_REMINDER_NOTIFIER,
     SQS_CLIENT,
-    SQS_QUEUE_NAME,
-    SQS_QUEUE_URL,
+    SNS_CLIENT,
+    SNS_TOPIC_NAME,
+    SNS_TOPIC_ARN,
   ],
 })
 export class NotificationModule {}

@@ -1,12 +1,9 @@
 import type { TaskEventPublisher } from '@/modules/notification/application/ports/TaskEventPublisher';
-import { Task } from '@/modules/task/domain/Task';
 import { Result } from '@/shared/core/result';
 import { OutboxMessage } from '@/modules/outbox/domain/OutboxMessage';
 import type { OutboxRepository } from '@/modules/outbox/application/ports/OutboxRepository';
-import {
-  TASK_CREATED_EVENT_TYPE,
-  TaskCreatedOutboxPayload,
-} from '@/modules/outbox/domain/TaskCreatedOutboxEvent';
+import { TASK_CREATED_EVENT_TYPE } from '@/modules/outbox/domain/TaskCreatedOutboxEvent';
+import { TASK_UPDATED_EVENT_TYPE } from '@/modules/outbox/domain/TaskUpdatedOutboxEvent';
 import { DispatchOutboxMessagesCommand } from '@/modules/outbox/application/commands/dispatch-outbox/DispatchOutboxMessagesCommand';
 
 interface DispatchFailure {
@@ -66,29 +63,31 @@ export class DispatchOutboxMessagesHandler {
   private async dispatchMessage(
     message: OutboxMessage,
   ): Promise<Result<void, Error>> {
-    if (message.type !== TASK_CREATED_EVENT_TYPE) {
+    if (
+      message.type !== TASK_CREATED_EVENT_TYPE &&
+      message.type !== TASK_UPDATED_EVENT_TYPE
+    ) {
       return Result.fail(
         new Error(`OUTBOX_UNSUPPORTED_EVENT_TYPE:${message.type}`),
       );
     }
 
-    const taskInputResult = this.toTaskCreatedPayload(message.payload);
-    if (!taskInputResult.ok) return Result.fail(taskInputResult.error);
+    const payloadResult = this.validateTaskPayload(message.payload);
+    if (!payloadResult.ok) return Result.fail(payloadResult.error);
 
-    const taskOrError = Task.create(taskInputResult.value);
-    if (!taskOrError.ok) return Result.fail(taskOrError.error);
-
-    const publishResult = await this.taskEventPublisher.publishTaskCreated(
-      taskOrError.value,
-    );
+    const publishResult = await this.taskEventPublisher.publish({
+      type: message.type,
+      occurredAt: message.occurredAt.toISOString(),
+      payload: payloadResult.value,
+    });
     if (!publishResult.ok) return Result.fail(publishResult.error);
 
     return Result.ok(undefined);
   }
 
-  private toTaskCreatedPayload(
+  private validateTaskPayload(
     payload: Record<string, unknown>,
-  ): Result<TaskCreatedOutboxPayload, Error> {
+  ): Result<Record<string, unknown>, Error> {
     if (typeof payload.id !== 'string') {
       return Result.fail(new Error('OUTBOX_INVALID_PAYLOAD:id'));
     }

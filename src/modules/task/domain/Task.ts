@@ -1,8 +1,17 @@
 import { Result } from '@/shared/core/result';
 import { BusinessError } from '@/shared/domain/BusinessError';
 import { ValidationError } from '@/shared/domain/ValidationError';
+import { DomainEvent } from '@/shared/cqrs/CqrsTypes';
 import { TaskStatus } from './TaskStatus';
 import { TaskTitle } from './TaskTitle';
+import {
+  TASK_CREATED_EVENT,
+  TaskCreatedEvent,
+} from '@/modules/task/domain/events/TaskCreatedEvent';
+import {
+  TASK_UPDATED_EVENT,
+  TaskUpdatedEvent,
+} from '@/modules/task/domain/events/TaskUpdatedEvent';
 
 export class Task {
   private readonly _id: string;
@@ -11,6 +20,7 @@ export class Task {
   private readonly _description?: string;
   private readonly _assignedTo?: string;
   private readonly _dueDate?: Date;
+  private _events: DomainEvent[];
 
   private constructor(params: {
     id: string;
@@ -19,6 +29,7 @@ export class Task {
     description?: string;
     assignedTo?: string;
     dueDate?: Date;
+    events?: DomainEvent[];
   }) {
     this._id = params.id;
     this._title = params.title;
@@ -26,6 +37,7 @@ export class Task {
     this._description = params.description;
     this._assignedTo = params.assignedTo;
     this._dueDate = params.dueDate;
+    this._events = [...(params.events ?? [])];
   }
 
   get id() {
@@ -47,14 +59,17 @@ export class Task {
     return this._dueDate ? new Date(this._dueDate) : undefined;
   }
 
-  static create(input: {
-    id?: string;
-    title: string;
-    status?: string;
-    description?: string;
-    assignedTo?: string;
-    dueDate?: Date;
-  }): Result<Task, Error> {
+  static create(
+    input: {
+      id?: string;
+      title: string;
+      status?: string;
+      description?: string;
+      assignedTo?: string;
+      dueDate?: Date;
+    },
+    options?: { emitCreatedEvent?: boolean },
+  ): Result<Task, Error> {
     const title = TaskTitle.create(input?.title);
     if (!title.ok) return Result.fail(title.error);
 
@@ -73,7 +88,16 @@ export class Task {
       status: status.value,
       assignedTo: assigned,
       dueDate: due,
+      events: [],
     });
+
+    if (options?.emitCreatedEvent !== false) {
+      const event: TaskCreatedEvent = {
+        kind: TASK_CREATED_EVENT,
+        task: task.toPrimitives(),
+      };
+      task.recordEvent(event);
+    }
 
     return Result.ok(task);
   }
@@ -96,6 +120,7 @@ export class Task {
         description: this._description,
         assignedTo: this._assignedTo,
         dueDate: this._dueDate ? new Date(this._dueDate) : undefined,
+        events: [],
       }),
     );
   }
@@ -114,6 +139,7 @@ export class Task {
         description: this._description,
         assignedTo: this._assignedTo,
         dueDate: this._dueDate ? new Date(this._dueDate) : undefined,
+        events: [],
       }),
     );
   }
@@ -165,9 +191,26 @@ export class Task {
           : this._dueDate
             ? new Date(this._dueDate)
             : undefined,
+      events: [],
     });
 
+    const event: TaskUpdatedEvent = {
+      kind: TASK_UPDATED_EVENT,
+      task: taskUpdated.toPrimitives(),
+    };
+    taskUpdated.recordEvent(event);
+
     return Result.ok(taskUpdated);
+  }
+
+  pullEvents(): DomainEvent[] {
+    const events = [...this._events];
+    this._events = [];
+    return events;
+  }
+
+  private recordEvent<TEvent extends DomainEvent>(event: TEvent): void {
+    this._events.push(event);
   }
 
   toPrimitives() {

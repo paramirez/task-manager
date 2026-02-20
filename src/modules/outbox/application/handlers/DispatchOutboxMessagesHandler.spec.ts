@@ -1,6 +1,5 @@
 import { TaskEventPublisher } from '@/modules/notification/application/ports/TaskEventPublisher';
 import { DISPATCH_OUTBOX_MESSAGES_COMMAND } from '@/modules/outbox/application/commands/dispatch-outbox/DispatchOutboxMessagesCommand';
-import { Task } from '@/modules/task/domain/Task';
 import { PromiseResult, Result } from '@/shared/core/result';
 import { DispatchOutboxMessagesHandler } from './DispatchOutboxMessagesHandler';
 import { OutboxRepository } from '@/modules/outbox/application/ports/OutboxRepository';
@@ -39,12 +38,17 @@ class InMemoryTaskEventPublisherForTest implements TaskEventPublisher {
   public readonly publishedTaskIds: string[] = [];
   public failNext = false;
 
-  publishTaskCreated(task: Task): PromiseResult<void, Error> {
+  publish(event: {
+    type: string;
+    payload: Record<string, unknown>;
+    occurredAt: string;
+  }): PromiseResult<void, Error> {
     if (this.failNext) {
       this.failNext = false;
       return Promise.resolve(Result.fail(new Error('PUBLISH_FAILED')));
     }
-    this.publishedTaskIds.push(task.id);
+    const id = event.payload.id;
+    if (typeof id === 'string') this.publishedTaskIds.push(id);
     return Promise.resolve(Result.ok(undefined));
   }
 }

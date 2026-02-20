@@ -5,15 +5,16 @@ API de gestión de tareas con arquitectura modular (dominio/aplicación/infra), 
 Incluye:
 - CRUD de tareas.
 - Programación de recordatorios asíncronos.
-- Publicación de eventos de dominio a SQS (outbox).
+- Publicación de eventos de dominio a SNS (outbox) https://microservices.io/patterns/data/transactional-outbox.html.
 - Procesamiento asíncrono en un proceso separado (`worker`) para aproximación de microservicios.
 
 ## Arquitectura de ejecución (estilo microservicios)
 
 - `api`: expone endpoints HTTP.
 - `worker`: procesa cola asíncrona en segundo plano.
+- `task-events-consumer`: microservicio consumidor de eventos de tarea.
 - `mongo`: persistencia principal.
-- `localstack`: emulación local de SQS.
+- `localstack`: emulación local de SNS/SQS.
 
 `api` y `worker` comparten código (monorepo/monolito modular), pero corren como servicios separados.
 
@@ -39,12 +40,17 @@ Ejemplo base en `.env.example`.
 - `PORT`: puerto HTTP de la app.
 - `WORKER_ENABLED`: `true` activa el worker asíncrono en el proceso.
 - `MONGO_URI`, `MONGO_DB`, `MONGO_SERVER_SELECTION_TIMEOUT_MS`: conexión MongoDB.
-- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: credenciales SQS.
+- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: credenciales AWS para SNS/SQS.
+- `SNS_ENDPOINT`: endpoint SNS (LocalStack local: `http://localhost:4566`).
+- `SNS_TOPIC_NAME`: tópico de eventos de tareas (`task-events`).
 - `SQS_ENDPOINT`: endpoint SQS (LocalStack local: `http://localhost:4566`).
-- `SQS_QUEUE_NAME`: cola para eventos de tareas (`task-events`).
 - `ASYNC_JOBS_SQS_QUEUE_NAME`: cola de trabajos asíncronos (`async-jobs`).
 - `ASYNC_JOBS_POLL_INTERVAL_MS`: intervalo de polling del worker.
 - `ASYNC_JOBS_BATCH_SIZE`: tamaño de lote por ciclo.
+- `TASK_EVENTS_CONSUMER_ENABLED`: activa consumo de eventos en proceso.
+- `TASK_EVENTS_CONSUMER_SQS_QUEUE_NAME`: cola SQS suscrita al topic SNS `task-events`.
+- `TASK_EVENTS_CONSUMER_WAIT_SECONDS`: long-poll del consumidor.
+- `TASK_EVENTS_CONSUMER_VISIBILITY_SECONDS`: visibility timeout del consumidor.
 
 ## Docker
 
@@ -63,12 +69,12 @@ docker compose -f compose.yaml up -d --build
 Servicios:
 - API: `http://localhost:3000`
 - MongoDB: `localhost:27017`
-- LocalStack (SQS): `http://localhost:4566`
+- LocalStack (SNS/SQS): `http://localhost:4566`
 
 ### Logs
 
 ```bash
-docker compose -f compose.yaml logs -f api worker
+docker compose -f compose.yaml logs -f api worker task-events-consumer
 ```
 
 ### Apagar stack
@@ -133,6 +139,12 @@ docker compose -f compose.yaml down
 - `POST /jobs/process`
   - Fuerza procesamiento manual de cola (útil para pruebas).
 
+### Evento de actualización
+
+- Al actualizar una tarea (`PUT`/`PATCH`), dominio emite `task.updated`.
+- El outbox lo publica en SNS (`task-events`).
+- `task-events-consumer` recibe por SQS y ejecuta acciones de negocio desacopladas.
+
 ## Validación
 
 Se usa `ValidationPipe` global con:
@@ -145,7 +157,7 @@ Los payloads inválidos retornan error 4xx.
 ## Salud del sistema
 
 - `GET /health/live`
-- `GET /health/ready` (verifica MongoDB y colas SQS requeridas)
+- `GET /health/ready` (verifica MongoDB, tópico SNS y cola SQS requeridos)
 
 ## Pruebas
 

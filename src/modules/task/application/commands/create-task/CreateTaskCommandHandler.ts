@@ -1,6 +1,4 @@
 import type { TaskRepository } from '@/modules/task/domain/ports/TaskRepository';
-import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEvent';
-import type { TaskCreatedEvent } from '@/modules/task/domain/events/TaskCreatedEvent';
 import type { EventBus } from '@/shared/cqrs/CqrsTypes';
 import { Task } from '@/modules/task/domain/Task';
 import { Result } from '@/shared/core/result';
@@ -20,11 +18,10 @@ export class CreateTaskCommandHandler {
     const createTaskResult = await this.taskRepository.create(task);
     if (!createTaskResult.ok) return Result.fail(createTaskResult.error);
 
-    const publishEventResult = await this.eventBus.publish<TaskCreatedEvent>({
-      kind: TASK_CREATED_EVENT,
-      task: task.toPrimitives(),
-    });
-    if (!publishEventResult.ok) return Result.fail(publishEventResult.error);
+    for (const event of task.pullEvents()) {
+      const publishEventResult = await this.eventBus.publish(event);
+      if (!publishEventResult.ok) return Result.fail(publishEventResult.error);
+    }
 
     return Result.ok(undefined);
   }
