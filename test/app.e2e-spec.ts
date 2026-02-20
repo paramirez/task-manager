@@ -13,9 +13,11 @@ describe('HTTP adapters (e2e)', () => {
     SQS_ENDPOINT: process.env.SQS_ENDPOINT,
     SQS_QUEUE_NAME: process.env.SQS_QUEUE_NAME,
     ASYNC_JOBS_SQS_QUEUE_NAME: process.env.ASYNC_JOBS_SQS_QUEUE_NAME,
+    WORKER_ENABLED: process.env.WORKER_ENABLED,
   };
 
   beforeAll(() => {
+    process.env.WORKER_ENABLED = 'false';
     process.env.AWS_REGION ??= 'us-east-1';
     process.env.AWS_ACCESS_KEY_ID ??= 'test';
     process.env.AWS_SECRET_ACCESS_KEY ??= 'test';
@@ -43,6 +45,9 @@ describe('HTTP adapters (e2e)', () => {
     else
       process.env.ASYNC_JOBS_SQS_QUEUE_NAME =
         previousEnv.ASYNC_JOBS_SQS_QUEUE_NAME;
+    if (previousEnv.WORKER_ENABLED === undefined)
+      delete process.env.WORKER_ENABLED;
+    else process.env.WORKER_ENABLED = previousEnv.WORKER_ENABLED;
   });
 
   beforeEach(async () => {
@@ -52,6 +57,10 @@ describe('HTTP adapters (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 
   it('/tasks (GET)', () => {

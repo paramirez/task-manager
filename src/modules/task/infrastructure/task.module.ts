@@ -1,20 +1,19 @@
 import { Module } from '@nestjs/common';
-import { DATABASE_DATASOURCE } from '@/bootstrap/database/DatabaseModule';
+import { DATABASE_DB } from '@/bootstrap/database/DatabaseModule';
 import { TaskController } from '@/modules/task/infrastructure/http/controllers/TaskController';
 import { TASK_REPOSITORY } from '@/modules/task/domain/ports/TaskRepository';
-import { TaskPostgresAdapter } from '@/modules/task/infrastructure/persistence/postgres/TaskPostgresAdapter';
-import { TaskEntity } from '@/modules/task/infrastructure/persistence/postgres/TaskEntity';
-import { DataSource } from 'typeorm';
+import { TaskMongoAdapter } from '@/modules/task/infrastructure/persistence/mongo/TaskMongoAdapter';
+import { Db } from 'mongodb';
 
 @Module({
   controllers: [TaskController],
   providers: [
     {
       provide: TASK_REPOSITORY,
-      useFactory(dataSource: DataSource) {
-        return new TaskPostgresAdapter(dataSource.getRepository(TaskEntity));
+      useFactory(db: Db) {
+        return new TaskMongoAdapter(db.collection('tasks'));
       },
-      inject: [DATABASE_DATASOURCE],
+      inject: [DATABASE_DB],
     },
   ],
   exports: [TASK_REPOSITORY],

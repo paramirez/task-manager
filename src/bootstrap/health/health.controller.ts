@@ -1,4 +1,4 @@
-import { DATABASE_DATASOURCE } from '@/bootstrap/database/DatabaseModule';
+import { DATABASE_DB } from '@/bootstrap/database/DatabaseModule';
 import {
   SQS_CLIENT,
   SQS_QUEUE_NAME,
@@ -11,12 +11,12 @@ import {
   Inject,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { Db } from 'mongodb';
 
 @Controller('health')
 export class HealthController {
   constructor(
-    @Inject(DATABASE_DATASOURCE) private readonly dataSource: DataSource,
+    @Inject(DATABASE_DB) private readonly db: Db,
     @Inject(SQS_CLIENT) private readonly sqsClient: SQSClient,
     @Inject(SQS_QUEUE_NAME) private readonly taskEventsQueueName: string,
     @Inject(ASYNC_JOBS_SQS_QUEUE_NAME)
@@ -31,7 +31,7 @@ export class HealthController {
   @Get('ready')
   async ready() {
     try {
-      await this.dataSource.query('SELECT 1');
+      await this.db.command({ ping: 1 });
       await this.sqsClient.send(
         new GetQueueUrlCommand({ QueueName: this.taskEventsQueueName }),
       );

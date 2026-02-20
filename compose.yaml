@@ -7,12 +7,9 @@ services:
       NODE_ENV: production
       PORT: 3000
       WORKER_ENABLED: "false"
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: app
-      DB_PASSWORD: app
-      DB_NAME: appdb
-      DB_SYNCHRONIZE: "true"
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: appdb
+      MONGO_SERVER_SELECTION_TIMEOUT_MS: 5000
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
@@ -22,7 +19,7 @@ services:
       ASYNC_JOBS_POLL_INTERVAL_MS: 30000
       ASYNC_JOBS_BATCH_SIZE: 10
     depends_on:
-      postgres:
+      mongo:
         condition: service_healthy
       localstack:
         condition: service_healthy
@@ -49,23 +46,21 @@ services:
       PORT: 3001
       WORKER_ENABLED: "true"
     depends_on:
-      postgres:
+      mongo:
         condition: service_healthy
       localstack:
         condition: service_healthy
 
-  postgres:
-    image: postgres:17
+  mongo:
+    image: mongo:7
     environment:
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: app
-      POSTGRES_DB: appdb
+      MONGO_INITDB_DATABASE: appdb
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d appdb"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -88,4 +83,4 @@ services:
       retries: 20
 
 volumes:
-  pg_data:
+  mongo_data:

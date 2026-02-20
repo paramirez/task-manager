@@ -1,24 +1,28 @@
 import { TaskReportRepository } from '@/modules/reporting/application/ports/TaskReportRepository';
 import { CompletedTasksReport } from '@/modules/reporting/domain/CompletedTasksReport';
 import { PromiseResult, Result } from '@/shared/core/result';
-import { Repository } from 'typeorm';
-import { CompletedTasksReportEntity } from './CompletedTasksReportEntity';
+import { Collection } from 'mongodb';
 
-export class TaskReportPostgresAdapter implements TaskReportRepository {
+interface CompletedTasksReportDocument {
+  id: string;
+  generatedAt: Date;
+  completedTasks: number;
+}
+
+export class TaskReportMongoAdapter implements TaskReportRepository {
   constructor(
-    private readonly repository: Repository<CompletedTasksReportEntity>,
+    private readonly collection: Collection<CompletedTasksReportDocument>,
   ) {}
 
   async saveCompletedReport(
     report: CompletedTasksReport,
   ): PromiseResult<void, Error> {
     try {
-      const entity = this.repository.create({
+      await this.collection.insertOne({
         id: report.id,
         generatedAt: new Date(report.generatedAt),
         completedTasks: report.completedTasks,
       });
-      await this.repository.save(entity);
       return Result.ok(undefined);
     } catch (error) {
       return Result.fail(error as Error);
@@ -27,14 +31,15 @@ export class TaskReportPostgresAdapter implements TaskReportRepository {
 
   async listCompletedReports(): PromiseResult<CompletedTasksReport[], Error> {
     try {
-      const entities = await this.repository.find({
-        order: { generatedAt: 'DESC', id: 'DESC' },
-      });
+      const documents = await this.collection
+        .find({})
+        .sort({ generatedAt: -1, id: -1 })
+        .toArray();
       return Result.ok(
-        entities.map((entity) => ({
-          id: entity.id,
-          generatedAt: new Date(entity.generatedAt),
-          completedTasks: entity.completedTasks,
+        documents.map((document) => ({
+          id: document.id,
+          generatedAt: new Date(document.generatedAt),
+          completedTasks: document.completedTasks,
         })),
       );
     } catch (error) {

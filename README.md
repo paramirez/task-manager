@@ -12,7 +12,7 @@ Incluye:
 
 - `api`: expone endpoints HTTP.
 - `worker`: procesa cola asíncrona en segundo plano.
-- `postgres`: persistencia relacional.
+- `mongo`: persistencia principal.
 - `localstack`: emulación local de SQS.
 
 `api` y `worker` comparten código (monorepo/monolito modular), pero corren como servicios separados.
@@ -38,7 +38,7 @@ Ejemplo base en `.env.example`.
 
 - `PORT`: puerto HTTP de la app.
 - `WORKER_ENABLED`: `true` activa el worker asíncrono en el proceso.
-- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SYNCHRONIZE`: conexión Postgres.
+- `MONGO_URI`, `MONGO_DB`, `MONGO_SERVER_SELECTION_TIMEOUT_MS`: conexión MongoDB.
 - `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: credenciales SQS.
 - `SQS_ENDPOINT`: endpoint SQS (LocalStack local: `http://localhost:4566`).
 - `SQS_QUEUE_NAME`: cola para eventos de tareas (`task-events`).
@@ -62,7 +62,7 @@ docker compose -f compose.yaml up -d --build
 
 Servicios:
 - API: `http://localhost:3000`
-- Postgres: `localhost:5432`
+- MongoDB: `localhost:27017`
 - LocalStack (SQS): `http://localhost:4566`
 
 ### Logs
@@ -145,7 +145,7 @@ Los payloads inválidos retornan error 4xx.
 ## Salud del sistema
 
 - `GET /health/live`
-- `GET /health/ready` (verifica Postgres y colas SQS requeridas)
+- `GET /health/ready` (verifica MongoDB y colas SQS requeridas)
 
 ## Pruebas
 
@@ -156,4 +156,4 @@ npm run test
 npm run test:e2e
 ```
 
-Para `test:e2e`, necesitas Postgres y LocalStack activos.
+Para `test:e2e`, necesitas MongoDB y LocalStack activos.

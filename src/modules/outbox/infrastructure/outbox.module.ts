@@ -1,22 +1,19 @@
 import { Module } from '@nestjs/common';
-import { DATABASE_DATASOURCE } from '@/bootstrap/database/DatabaseModule';
+import { DATABASE_DB } from '@/bootstrap/database/DatabaseModule';
 import { OutboxController } from '@/modules/outbox/infrastructure/http/controllers/OutboxController';
 import { OUTBOX_REPOSITORY } from '@/modules/outbox/application/ports/OutboxRepository';
-import { OutboxMessageEntity } from '@/modules/outbox/infrastructure/persistence/postgres/OutboxMessageEntity';
-import { OutboxPostgresAdapter } from '@/modules/outbox/infrastructure/persistence/postgres/OutboxPostgresAdapter';
-import { DataSource } from 'typeorm';
+import { OutboxMongoAdapter } from '@/modules/outbox/infrastructure/persistence/mongo/OutboxMongoAdapter';
+import { Db } from 'mongodb';
 
 @Module({
   controllers: [OutboxController],
   providers: [
     {
       provide: OUTBOX_REPOSITORY,
-      useFactory(dataSource: DataSource) {
-        return new OutboxPostgresAdapter(
-          dataSource.getRepository(OutboxMessageEntity),
-        );
+      useFactory(db: Db) {
+        return new OutboxMongoAdapter(db.collection('outbox_messages'));
       },
-      inject: [DATABASE_DATASOURCE],
+      inject: [DATABASE_DB],
     },
   ],
   exports: [OUTBOX_REPOSITORY],

@@ -1,20 +1,19 @@
 import { Module } from '@nestjs/common';
-import { DATABASE_DATASOURCE } from '@/bootstrap/database/DatabaseModule';
+import { DATABASE_DB } from '@/bootstrap/database/DatabaseModule';
 import { TASK_REPORT_REPOSITORY } from '@/modules/reporting/application/ports/TaskReportRepository';
-import { CompletedTasksReportEntity } from '@/modules/reporting/infrastructure/persistence/postgres/CompletedTasksReportEntity';
-import { TaskReportPostgresAdapter } from '@/modules/reporting/infrastructure/persistence/postgres/TaskReportPostgresAdapter';
-import { DataSource } from 'typeorm';
+import { TaskReportMongoAdapter } from '@/modules/reporting/infrastructure/persistence/mongo/TaskReportMongoAdapter';
+import { Db } from 'mongodb';
 
 @Module({
   providers: [
     {
       provide: TASK_REPORT_REPOSITORY,
-      useFactory(dataSource: DataSource) {
-        return new TaskReportPostgresAdapter(
-          dataSource.getRepository(CompletedTasksReportEntity),
+      useFactory(db: Db) {
+        return new TaskReportMongoAdapter(
+          db.collection('completed_tasks_reports'),
         );
       },
-      inject: [DATABASE_DATASOURCE],
+      inject: [DATABASE_DB],
     },
   ],
   exports: [TASK_REPORT_REPOSITORY],

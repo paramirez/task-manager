@@ -1,22 +1,30 @@
 import { OutboxRepository } from '@/modules/outbox/application/ports/OutboxRepository';
 import { OutboxMessage } from '@/modules/outbox/domain/OutboxMessage';
 import { PromiseResult, Result } from '@/shared/core/result';
-import { IsNull, Repository } from 'typeorm';
-import { OutboxMessageEntity } from './OutboxMessageEntity';
+import { Collection } from 'mongodb';
 
-export class OutboxPostgresAdapter implements OutboxRepository {
-  constructor(private readonly repository: Repository<OutboxMessageEntity>) {}
+interface OutboxMessageDocument {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  occurredAt: Date;
+  processedAt?: Date;
+}
+
+export class OutboxMongoAdapter implements OutboxRepository {
+  constructor(private readonly collection: Collection<OutboxMessageDocument>) {}
 
   async add(message: OutboxMessage): PromiseResult<void, Error> {
     try {
-      const entity = this.repository.create({
+      await this.collection.insertOne({
         id: message.id,
         type: message.type,
         payload: message.payload,
         occurredAt: new Date(message.occurredAt),
-        processedAt: message.processedAt ? new Date(message.processedAt) : null,
+        ...(message.processedAt
+          ? { processedAt: new Date(message.processedAt) }
+          : {}),
       });
-      await this.repository.save(entity);
       return Result.ok(undefined);
     } catch (error) {
       return Result.fail(error as Error);
@@ -25,18 +33,18 @@ export class OutboxPostgresAdapter implements OutboxRepository {
 
   async listPending(): PromiseResult<OutboxMessage[], Error> {
     try {
-      const entities = await this.repository.find({
-        where: { processedAt: IsNull() },
-        order: { occurredAt: 'ASC', id: 'ASC' },
-      });
+      const documents = await this.collection
+        .find({ processedAt: { $exists: false } })
+        .sort({ occurredAt: 1, id: 1 })
+        .toArray();
       return Result.ok(
-        entities.map((entity) => ({
-          id: entity.id,
-          type: entity.type,
-          payload: entity.payload,
-          occurredAt: new Date(entity.occurredAt),
-          processedAt: entity.processedAt
-            ? new Date(entity.processedAt)
+        documents.map((document) => ({
+          id: document.id,
+          type: document.type,
+          payload: document.payload,
+          occurredAt: new Date(document.occurredAt),
+          processedAt: document.processedAt
+            ? new Date(document.processedAt)
             : undefined,
         })),
       );
@@ -47,11 +55,11 @@ export class OutboxPostgresAdapter implements OutboxRepository {
 
   async markAsProcessed(messageId: string): PromiseResult<void, Error> {
     try {
-      const result = await this.repository.update(
+      const result = await this.collection.updateOne(
         { id: messageId },
-        { processedAt: new Date() },
+        { $set: { processedAt: new Date() } },
       );
-      if (!result.affected) {
+      if (result.matchedCount === 0) {
         return Result.fail(new Error('OUTBOX_MESSAGE_NOT_FOUND'));
       }
       return Result.ok(undefined);
