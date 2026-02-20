@@ -13,22 +13,16 @@ describe('HTTP adapters (e2e)', () => {
     AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
     SQS_ENDPOINT: process.env.SQS_ENDPOINT,
-    SNS_ENDPOINT: process.env.SNS_ENDPOINT,
-    SNS_TOPIC_NAME: process.env.SNS_TOPIC_NAME,
     ASYNC_JOBS_SQS_QUEUE_NAME: process.env.ASYNC_JOBS_SQS_QUEUE_NAME,
     WORKER_ENABLED: process.env.WORKER_ENABLED,
-    TASK_EVENTS_CONSUMER_ENABLED: process.env.TASK_EVENTS_CONSUMER_ENABLED,
   };
 
   beforeAll(() => {
     process.env.WORKER_ENABLED = 'false';
-    process.env.TASK_EVENTS_CONSUMER_ENABLED = 'false';
     process.env.AWS_REGION ??= 'us-east-1';
     process.env.AWS_ACCESS_KEY_ID ??= 'test';
     process.env.AWS_SECRET_ACCESS_KEY ??= 'test';
     process.env.SQS_ENDPOINT ??= 'http://localhost:4566';
-    process.env.SNS_ENDPOINT ??= 'http://localhost:4566';
-    process.env.SNS_TOPIC_NAME ??= 'task-events';
     process.env.ASYNC_JOBS_SQS_QUEUE_NAME ??= 'async-jobs';
   });
 
@@ -43,11 +37,6 @@ describe('HTTP adapters (e2e)', () => {
     else process.env.AWS_SECRET_ACCESS_KEY = previousEnv.AWS_SECRET_ACCESS_KEY;
     if (previousEnv.SQS_ENDPOINT === undefined) delete process.env.SQS_ENDPOINT;
     else process.env.SQS_ENDPOINT = previousEnv.SQS_ENDPOINT;
-    if (previousEnv.SNS_ENDPOINT === undefined) delete process.env.SNS_ENDPOINT;
-    else process.env.SNS_ENDPOINT = previousEnv.SNS_ENDPOINT;
-    if (previousEnv.SNS_TOPIC_NAME === undefined)
-      delete process.env.SNS_TOPIC_NAME;
-    else process.env.SNS_TOPIC_NAME = previousEnv.SNS_TOPIC_NAME;
     if (previousEnv.ASYNC_JOBS_SQS_QUEUE_NAME === undefined)
       delete process.env.ASYNC_JOBS_SQS_QUEUE_NAME;
     else
@@ -56,11 +45,6 @@ describe('HTTP adapters (e2e)', () => {
     if (previousEnv.WORKER_ENABLED === undefined)
       delete process.env.WORKER_ENABLED;
     else process.env.WORKER_ENABLED = previousEnv.WORKER_ENABLED;
-    if (previousEnv.TASK_EVENTS_CONSUMER_ENABLED === undefined)
-      delete process.env.TASK_EVENTS_CONSUMER_ENABLED;
-    else
-      process.env.TASK_EVENTS_CONSUMER_ENABLED =
-        previousEnv.TASK_EVENTS_CONSUMER_ENABLED;
   });
 
   beforeEach(async () => {
@@ -74,9 +58,7 @@ describe('HTTP adapters (e2e)', () => {
     const db = app.get<Db>(DATABASE_DB);
     await Promise.all([
       db.collection('tasks').deleteMany({}),
-      db.collection('outbox_messages').deleteMany({}),
       db.collection('completed_tasks_reports').deleteMany({}),
-      db.collection('task_events_consumer_offsets').deleteMany({}),
     ]);
   });
 
@@ -86,23 +68,6 @@ describe('HTTP adapters (e2e)', () => {
 
   it('/tasks (GET)', () => {
     return request(app.getHttpServer()).get('/tasks').expect(200).expect([]);
-  });
-
-  it('/outbox/dispatch (POST)', async () => {
-    await request(app.getHttpServer())
-      .post('/tasks')
-      .send({ title: 'Dispatch me' })
-      .expect(201);
-
-    await request(app.getHttpServer())
-      .post('/outbox/dispatch')
-      .expect(201)
-      .expect({
-        total: 1,
-        processed: 1,
-        failed: 0,
-        failures: [],
-      });
   });
 
   it('/jobs/reports/completed-tasks + /jobs/process (POST)', async () => {

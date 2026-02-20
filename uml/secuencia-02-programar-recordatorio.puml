@@ -1,0 +1,28 @@
+@startuml
+!theme plain
+
+title Secuencia 02 - Programar Recordatorio
+
+autonumber
+actor "Usuario" as U
+participant "TaskController" as C
+participant "CommandBus" as B
+participant "ScheduleTaskReminderCommandHandler" as H
+participant "TaskMongoAdapter" as R
+participant "SqsAsyncJobQueue" as Q
+participant "SQS async-jobs" as SQS
+
+U -> C : POST /tasks/{id}/schedule
+C -> B : SCHEDULE_TASK_REMINDER_COMMAND
+B -> H : execute(command)
+H -> R : findById(taskId)
+R --> H : task + dueDate
+H -> H : calcular runAt
+H -> Q : enqueue(job reminder)
+Q -> SQS : SendMessage(delay)
+SQS --> Q : messageId
+Q --> H : jobId
+H --> B : jobId
+B --> C : jobId
+C --> U : 201 {jobId}
+@enduml

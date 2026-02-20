@@ -1,0 +1,24 @@
+@startuml
+!theme plain
+
+title Secuencia 03 - Encolar Reporte de Completadas
+
+autonumber
+actor "Usuario" as U
+participant "AsyncJobsController" as C
+participant "CommandBus" as B
+participant "EnqueueCompletedTasksReportCommandHandler" as H
+participant "SqsAsyncJobQueue" as Q
+participant "SQS async-jobs" as SQS
+
+U -> C : POST /jobs/reports/completed-tasks
+C -> B : ENQUEUE_COMPLETED_TASKS_REPORT_COMMAND
+B -> H : execute(command)
+H -> Q : enqueue(job completed_report)
+Q -> SQS : SendMessage
+SQS --> Q : messageId
+Q --> H : jobId
+H --> B : jobId
+B --> C : jobId
+C --> U : 201 {jobId}
+@enduml

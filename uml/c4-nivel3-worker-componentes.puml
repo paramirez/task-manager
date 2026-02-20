@@ -1,0 +1,30 @@
+@startuml
+!theme plain
+left to right direction
+
+title C4 Nivel 3 - Componentes (Worker Service)
+
+rectangle "Worker Service (NestJS)\n<<Container>>" as WorkerContainer {
+  [AsyncJobsWorker\n<<Component>>] as Worker
+  [CommandBus\n<<Component>>] as CommandBus
+  [ProcessAsyncJobsHandler\n<<Component>>] as ProcessHandler
+  [SqsAsyncJobQueue\n<<Component>>] as JobQueue
+  [TaskMongoAdapter\n<<Component>>] as TaskRepo
+  [TaskReportMongoAdapter\n<<Component>>] as ReportRepo
+  [NoopTaskReminderNotifier\n<<Component>>] as Notifier
+}
+
+database "MongoDB" as Mongo
+cloud "SQS async-jobs" as SQS
+
+Worker --> CommandBus : PROCESS_ASYNC_JOBS_COMMAND
+CommandBus --> ProcessHandler
+ProcessHandler --> JobQueue : dequeue/ack
+ProcessHandler --> TaskRepo : findAll()
+ProcessHandler --> ReportRepo : saveCompletedReport()
+ProcessHandler --> Notifier : sendDueDateReminder()
+
+TaskRepo --> Mongo
+ReportRepo --> Mongo
+JobQueue --> SQS
+@enduml

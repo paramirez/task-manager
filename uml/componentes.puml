@@ -1,0 +1,92 @@
+@startuml
+!theme plain
+skinparam componentStyle rectangle
+left to right direction
+
+title Task Manager - Diagrama de Componentes (Corregido)
+
+actor "Cliente HTTP" as Client
+
+package "API Service (NestJS)" {
+  [TaskController] as TaskController
+  [AsyncJobsController] as AsyncJobsController
+  [HealthController] as HealthController
+  [CommandBus] as CommandBus
+  [QueryBus] as QueryBus
+}
+
+package "Application" {
+  [CreateTaskCommandHandler] as CreateTaskHandler
+  [UpdateTaskCommandHandler] as UpdateTaskHandler
+  [PatchTaskCommandHandler] as PatchTaskHandler
+  [DeleteTaskCommandHandler] as DeleteTaskHandler
+  [ScheduleTaskReminderCommandHandler] as ScheduleReminderHandler
+  [EnqueueCompletedTasksReportCommandHandler] as EnqueueReportHandler
+  [ProcessAsyncJobsHandler] as ProcessJobsHandler
+  [ListTasksQueryHandler] as ListTasksHandler
+  [FindTaskByIdQueryHandler] as FindByIdHandler
+  [FindTasksByStatusQueryHandler] as FindByStatusHandler
+}
+
+package "Worker Service" {
+  [AsyncJobsWorker] as AsyncJobsWorker
+}
+
+package "Infrastructure Adapters" {
+  [TaskMongoAdapter] as TaskRepo
+  [TaskReportMongoAdapter] as ReportRepo
+  [SqsAsyncJobQueue] as AsyncJobQueue
+  [NoopTaskReminderNotifier] as ReminderNotifier
+}
+
+database "MongoDB" {
+  [tasks] as TasksCollection
+  [completed_tasks_reports] as ReportsCollection
+}
+
+cloud "Amazon SQS" {
+  [async-jobs] as AsyncJobsQueue
+}
+
+Client --> TaskController
+Client --> AsyncJobsController
+Client --> HealthController
+
+TaskController --> CommandBus
+TaskController --> QueryBus
+AsyncJobsController --> CommandBus
+
+CommandBus --> CreateTaskHandler
+CommandBus --> UpdateTaskHandler
+CommandBus --> PatchTaskHandler
+CommandBus --> DeleteTaskHandler
+CommandBus --> ScheduleReminderHandler
+CommandBus --> EnqueueReportHandler
+CommandBus --> ProcessJobsHandler
+
+QueryBus --> ListTasksHandler
+QueryBus --> FindByIdHandler
+QueryBus --> FindByStatusHandler
+
+CreateTaskHandler --> TaskRepo
+UpdateTaskHandler --> TaskRepo
+PatchTaskHandler --> TaskRepo
+DeleteTaskHandler --> TaskRepo
+ListTasksHandler --> TaskRepo
+FindByIdHandler --> TaskRepo
+FindByStatusHandler --> TaskRepo
+
+ScheduleReminderHandler --> TaskRepo
+ScheduleReminderHandler --> AsyncJobQueue
+EnqueueReportHandler --> AsyncJobQueue
+ProcessJobsHandler --> AsyncJobQueue
+ProcessJobsHandler --> TaskRepo
+ProcessJobsHandler --> ReportRepo
+ProcessJobsHandler --> ReminderNotifier
+
+AsyncJobsWorker --> CommandBus
+
+TaskRepo --> TasksCollection
+ReportRepo --> ReportsCollection
+AsyncJobQueue --> AsyncJobsQueue
+@enduml

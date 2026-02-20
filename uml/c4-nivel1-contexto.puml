@@ -1,0 +1,15 @@
+@startuml
+!theme plain
+left to right direction
+
+title C4 Nivel 1 - Contexto
+
+actor "Usuario\n<<Person>>" as User
+rectangle "Task Manager API\n<<Software System>>\nGestiona tareas y procesa trabajos asíncronos" as TM
+cloud "Amazon SQS\n<<External System>>\nCola de trabajos async-jobs" as SQS
+database "MongoDB\n<<External System>>\nPersistencia de tareas/reportes" as Mongo
+
+User --> TM : Usa API REST
+TM --> SQS : Encola y consume jobs
+TM --> Mongo : Lee y escribe datos
+@enduml

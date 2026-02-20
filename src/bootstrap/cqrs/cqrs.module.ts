@@ -11,25 +11,15 @@ import {
   CommandHandlerBinding,
   EVENT_BUS,
   EventBus,
-  EventHandlerBinding,
   QUERY_BUS,
   Query,
   QueryBus,
   QueryHandlerBinding,
 } from '@/shared/cqrs/CqrsTypes';
 import { TaskModule } from '@/modules/task/infrastructure/task.module';
-import { OutboxModule } from '@/modules/outbox/infrastructure/outbox.module';
 import { AsyncJobsModule } from '@/modules/async-jobs/infrastructure/async-jobs.module';
 import { NotificationModule } from '@/modules/notification/infrastructure/notification.module';
 import { ReportingModule } from '@/modules/reporting/infrastructure/reporting.module';
-import {
-  OUTBOX_REPOSITORY,
-  OutboxRepository,
-} from '@/modules/outbox/application/ports/OutboxRepository';
-import {
-  TASK_EVENT_PUBLISHER,
-  TaskEventPublisher,
-} from '@/modules/notification/application/ports/TaskEventPublisher';
 import {
   TASK_REPOSITORY,
   TaskRepository,
@@ -66,11 +56,6 @@ import {
   FIND_TASKS_BY_STATUS_QUERY,
   FindTasksByStatusQuery,
 } from '@/modules/task/application/queries/find-tasks-by-status/FindTasksByStatusQuery';
-import { DispatchOutboxMessagesHandler } from '@/modules/outbox/application/handlers/DispatchOutboxMessagesHandler';
-import {
-  DISPATCH_OUTBOX_MESSAGES_COMMAND,
-  DispatchOutboxMessagesCommand,
-} from '@/modules/outbox/application/commands/dispatch-outbox/DispatchOutboxMessagesCommand';
 import { ScheduleTaskReminderCommandHandler } from '@/modules/async-jobs/application/commands/schedule-task-reminder/ScheduleTaskReminderCommandHandler';
 import {
   SCHEDULE_TASK_REMINDER_COMMAND,
@@ -86,10 +71,6 @@ import {
   PROCESS_ASYNC_JOBS_COMMAND,
   ProcessAsyncJobsCommand,
 } from '@/modules/async-jobs/application/commands/process-async-jobs/ProcessAsyncJobsCommand';
-import { EnqueueTaskCreatedOutboxEventHandler } from '@/modules/outbox/application/handlers/EnqueueTaskCreatedOutboxEventHandler';
-import { TASK_CREATED_EVENT } from '@/modules/task/domain/events/TaskCreatedEvent';
-import { EnqueueTaskUpdatedOutboxEventHandler } from '@/modules/outbox/application/handlers/EnqueueTaskUpdatedOutboxEventHandler';
-import { TASK_UPDATED_EVENT } from '@/modules/task/domain/events/TaskUpdatedEvent';
 import { UpdateTaskCommandHandler } from '@/modules/task/application/commands/update-task/UpdateTaskCommandHandler';
 import {
   UPDATE_TASK_COMMAND,
@@ -108,52 +89,13 @@ import {
 
 @Global()
 @Module({
-  imports: [
-    TaskModule,
-    OutboxModule,
-    AsyncJobsModule,
-    NotificationModule,
-    ReportingModule,
-  ],
+  imports: [TaskModule, AsyncJobsModule, NotificationModule, ReportingModule],
   providers: [
     {
-      provide: EnqueueTaskCreatedOutboxEventHandler,
-      useFactory(outboxRepository: OutboxRepository) {
-        return new EnqueueTaskCreatedOutboxEventHandler(outboxRepository);
-      },
-      inject: [OUTBOX_REPOSITORY],
-    },
-    {
-      provide: EnqueueTaskUpdatedOutboxEventHandler,
-      useFactory(outboxRepository: OutboxRepository) {
-        return new EnqueueTaskUpdatedOutboxEventHandler(outboxRepository);
-      },
-      inject: [OUTBOX_REPOSITORY],
-    },
-    {
       provide: EVENT_BUS,
-      useFactory(
-        enqueueTaskCreatedOutboxEventHandler: EnqueueTaskCreatedOutboxEventHandler,
-        enqueueTaskUpdatedOutboxEventHandler: EnqueueTaskUpdatedOutboxEventHandler,
-      ): EventBus {
-        const bindings: EventHandlerBinding[] = [
-          {
-            kind: TASK_CREATED_EVENT,
-            handle: (event) =>
-              enqueueTaskCreatedOutboxEventHandler.handle(event as never),
-          },
-          {
-            kind: TASK_UPDATED_EVENT,
-            handle: (event) =>
-              enqueueTaskUpdatedOutboxEventHandler.handle(event as never),
-          },
-        ];
-        return new InProcessEventBus(bindings);
+      useFactory(): EventBus {
+        return new InProcessEventBus([]);
       },
-      inject: [
-        EnqueueTaskCreatedOutboxEventHandler,
-        EnqueueTaskUpdatedOutboxEventHandler,
-      ],
     },
     {
       provide: CreateTaskCommandHandler,
@@ -205,19 +147,6 @@ import {
       inject: [TASK_REPOSITORY],
     },
     {
-      provide: DispatchOutboxMessagesHandler,
-      useFactory(
-        outboxRepository: OutboxRepository,
-        taskEventPublisher: TaskEventPublisher,
-      ) {
-        return new DispatchOutboxMessagesHandler(
-          outboxRepository,
-          taskEventPublisher,
-        );
-      },
-      inject: [OUTBOX_REPOSITORY, TASK_EVENT_PUBLISHER],
-    },
-    {
       provide: ScheduleTaskReminderCommandHandler,
       useFactory(taskRepository: TaskRepository, asyncJobQueue: AsyncJobQueue) {
         return new ScheduleTaskReminderCommandHandler(
@@ -266,7 +195,6 @@ import {
         scheduleTaskReminderCommandHandler: ScheduleTaskReminderCommandHandler,
         enqueueCompletedTasksReportCommandHandler: EnqueueCompletedTasksReportCommandHandler,
         processAsyncJobsHandler: ProcessAsyncJobsHandler,
-        dispatchOutboxMessagesHandler: DispatchOutboxMessagesHandler,
       ): CommandBus {
         const bindings: CommandHandlerBinding[] = [
           {
@@ -310,13 +238,6 @@ import {
                 command as ProcessAsyncJobsCommand,
               ),
           },
-          {
-            kind: DISPATCH_OUTBOX_MESSAGES_COMMAND,
-            execute: (command: Command) =>
-              dispatchOutboxMessagesHandler.execute(
-                command as DispatchOutboxMessagesCommand,
-              ),
-          },
         ];
         return new InProcessCommandBus(bindings);
       },
@@ -328,7 +249,6 @@ import {
         ScheduleTaskReminderCommandHandler,
         EnqueueCompletedTasksReportCommandHandler,
         ProcessAsyncJobsHandler,
-        DispatchOutboxMessagesHandler,
       ],
     },
     {
