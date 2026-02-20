@@ -99,19 +99,21 @@ export class DispatchOutboxMessagesHandler {
     }
     if (
       payload.description !== undefined &&
+      payload.description !== null &&
       typeof payload.description !== 'string'
     ) {
       return Result.fail(new Error('OUTBOX_INVALID_PAYLOAD:description'));
     }
     if (
       payload.assignedTo !== undefined &&
+      payload.assignedTo !== null &&
       typeof payload.assignedTo !== 'string'
     ) {
       return Result.fail(new Error('OUTBOX_INVALID_PAYLOAD:assignedTo'));
     }
 
     let dueDate: Date | undefined;
-    if (payload.dueDate !== undefined) {
+    if (payload.dueDate !== undefined && payload.dueDate !== null) {
       if (payload.dueDate instanceof Date) {
         dueDate = new Date(payload.dueDate);
       } else if (typeof payload.dueDate === 'string') {
@@ -129,8 +131,12 @@ export class DispatchOutboxMessagesHandler {
       id: payload.id,
       title: payload.title,
       status: payload.status,
-      description: payload.description,
-      assignedTo: payload.assignedTo,
+      description:
+        typeof payload.description === 'string'
+          ? payload.description
+          : undefined,
+      assignedTo:
+        typeof payload.assignedTo === 'string' ? payload.assignedTo : undefined,
       dueDate,
     });
   }

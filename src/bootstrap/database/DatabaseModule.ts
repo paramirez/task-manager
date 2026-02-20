@@ -1,4 +1,10 @@
-import { Global, Module } from '@nestjs/common';
+import {
+  Global,
+  Inject,
+  Injectable,
+  Module,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { Db, MongoClient } from 'mongodb';
 
 export const DATABASE_CLIENT = Symbol('DATABASE_CLIENT');
@@ -38,6 +44,15 @@ async function createMongoDb(client: MongoClient): Promise<Db> {
   return db;
 }
 
+@Injectable()
+class MongoClientShutdown implements OnApplicationShutdown {
+  constructor(@Inject(DATABASE_CLIENT) private readonly client: MongoClient) {}
+
+  async onApplicationShutdown() {
+    await this.client.close();
+  }
+}
+
 @Global()
 @Module({
   providers: [
@@ -50,6 +65,7 @@ async function createMongoDb(client: MongoClient): Promise<Db> {
       useFactory: createMongoDb,
       inject: [DATABASE_CLIENT],
     },
+    MongoClientShutdown,
   ],
   exports: [DATABASE_CLIENT, DATABASE_DB],
 })

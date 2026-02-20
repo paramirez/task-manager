@@ -1,4 +1,9 @@
-import { Module } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Module,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { TASK_EVENT_PUBLISHER } from '@/modules/notification/application/ports/TaskEventPublisher';
 import { TASK_REMINDER_NOTIFIER } from '@/modules/notification/application/ports/TaskReminderNotifier';
 import { NoopTaskReminderNotifier } from '@/modules/notification/infrastructure/providers/NoopTaskReminderNotifier';
@@ -16,6 +21,19 @@ function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
+}
+
+@Injectable()
+class AwsClientsShutdown implements OnApplicationShutdown {
+  constructor(
+    @Inject(SQS_CLIENT) private readonly sqsClient: SQSClient,
+    @Inject(SNS_CLIENT) private readonly snsClient: SNSClient,
+  ) {}
+
+  onApplicationShutdown() {
+    this.sqsClient.destroy();
+    this.snsClient.destroy();
+  }
 }
 
 @Module({
@@ -72,6 +90,7 @@ function required(name: string, fallback?: string): string {
       provide: TASK_REMINDER_NOTIFIER,
       useClass: NoopTaskReminderNotifier,
     },
+    AwsClientsShutdown,
   ],
   exports: [
     TASK_EVENT_PUBLISHER,

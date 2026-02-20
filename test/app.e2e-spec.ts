@@ -3,6 +3,8 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/bootstrap/app.module';
+import { DATABASE_DB } from '@/bootstrap/database/DatabaseModule';
+import { Db } from 'mongodb';
 
 describe('HTTP adapters (e2e)', () => {
   let app: INestApplication<App>;
@@ -68,6 +70,14 @@ describe('HTTP adapters (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
+
+    const db = app.get<Db>(DATABASE_DB);
+    await Promise.all([
+      db.collection('tasks').deleteMany({}),
+      db.collection('outbox_messages').deleteMany({}),
+      db.collection('completed_tasks_reports').deleteMany({}),
+      db.collection('task_events_consumer_offsets').deleteMany({}),
+    ]);
   });
 
   afterEach(async () => {
