@@ -1,0 +1,42 @@
+@startuml
+!theme plain
+
+title Secuencia 04 - Worker Procesa Jobs
+
+autonumber
+participant "AsyncJobsWorker" as W
+participant "CommandBus" as B
+participant "ProcessAsyncJobsHandler" as H
+participant "SqsAsyncJobQueue" as Q
+participant "TaskMongoAdapter" as TaskRepo
+participant "TaskReportMongoAdapter" as ReportRepo
+participant "NoopTaskReminderNotifier" as Notifier
+participant "SQS async-jobs" as SQS
+
+loop cada intervalo de polling
+  W -> B : PROCESS_ASYNC_JOBS_COMMAND
+  B -> H : execute(limit)
+  H -> Q : dequeueReady(limit, now)
+  Q -> SQS : ReceiveMessage
+  SQS --> Q : mensajes listos
+  Q --> H : jobs
+
+  alt job type = task.due_date.reminder
+    H -> Notifier : sendDueDateReminder(payload)
+    Notifier --> H : ok
+  else job type = task.completed_report
+    H -> TaskRepo : findAll()
+    TaskRepo --> H : tasks
+    H -> ReportRepo : saveCompletedReport()
+    ReportRepo --> H : ok
+  end
+
+  H -> Q : markCompleted(jobId)
+  Q -> SQS : DeleteMessage
+  SQS --> Q : ok
+  Q --> H : ok
+
+  H --> B : {dequeued, processed, failed}
+  B --> W : resumen
+end
+@enduml

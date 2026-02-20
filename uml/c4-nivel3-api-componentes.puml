@@ -1,0 +1,46 @@
+@startuml
+!theme plain
+left to right direction
+
+title C4 Nivel 3 - Componentes (API Service)
+
+actor "Usuario" as User
+
+rectangle "API Service (NestJS)\n<<Container>>" as API {
+  [TaskController\n<<Component>>] as TaskController
+  [AsyncJobsController\n<<Component>>] as JobsController
+  [HealthController\n<<Component>>] as HealthController
+  [CommandBus/QueryBus\n<<Component>>] as Buses
+
+  [Task Command Handlers\n<<Component>>] as TaskCommands
+  [Task Query Handlers\n<<Component>>] as TaskQueries
+  [Schedule Reminder Handler\n<<Component>>] as ScheduleHandler
+  [Enqueue Report Handler\n<<Component>>] as EnqueueHandler
+
+  [TaskMongoAdapter\n<<Component>>] as TaskRepo
+  [SqsAsyncJobQueue\n<<Component>>] as JobQueue
+}
+
+database "MongoDB" as Mongo
+cloud "SQS async-jobs" as SQS
+
+User --> TaskController : POST/PUT/PATCH/DELETE/GET /tasks
+User --> JobsController : POST /jobs/*
+User --> HealthController : GET /health/*
+
+TaskController --> Buses
+JobsController --> Buses
+Buses --> TaskCommands
+Buses --> TaskQueries
+Buses --> ScheduleHandler
+Buses --> EnqueueHandler
+
+TaskCommands --> TaskRepo
+TaskQueries --> TaskRepo
+ScheduleHandler --> TaskRepo
+ScheduleHandler --> JobQueue
+EnqueueHandler --> JobQueue
+
+TaskRepo --> Mongo
+JobQueue --> SQS
+@enduml

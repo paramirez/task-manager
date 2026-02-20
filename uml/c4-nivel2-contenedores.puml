@@ -1,0 +1,22 @@
+@startuml
+!theme plain
+left to right direction
+
+title C4 Nivel 2 - Contenedores
+
+actor "Usuario\n<<Person>>" as User
+
+rectangle "Task Manager\n<<Software System>>" as System {
+  rectangle "API Service (NestJS)\n<<Container>>\nEndpoints REST y encolado de jobs" as API
+  rectangle "Worker Service (NestJS)\n<<Container>>\nPolling y ejecución de jobs" as Worker
+}
+
+database "MongoDB\n<<Container: Database>>\ntasks + completed_tasks_reports" as Mongo
+cloud "Amazon SQS\n<<Container>>\nQueue: async-jobs" as SQS
+
+User --> API : HTTP/JSON
+API --> Mongo : CRUD tasks
+API --> SQS : enqueue jobs
+Worker --> SQS : dequeue/ack jobs
+Worker --> Mongo : leer tasks / guardar reportes
+@enduml

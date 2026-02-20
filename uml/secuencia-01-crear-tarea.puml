@@ -1,0 +1,24 @@
+@startuml
+!theme plain
+
+title Secuencia 01 - Crear Tarea
+
+autonumber
+actor "Usuario" as U
+participant "TaskController" as C
+participant "CommandBus" as B
+participant "CreateTaskCommandHandler" as H
+participant "TaskMongoAdapter" as R
+database "MongoDB.tasks" as DB
+
+U -> C : POST /tasks
+C -> B : CREATE_TASK_COMMAND
+B -> H : execute(command)
+H -> R : create(task)
+R -> DB : insertOne
+DB --> R : ok
+R --> H : ok
+H --> B : ok
+B --> C : ok
+C --> U : 201 Created
+@enduml
