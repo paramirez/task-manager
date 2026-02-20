@@ -4,7 +4,7 @@
 
 - Stack: NestJS 11, TypeScript, CQRS in-process, Result pattern.
 - Persistencia: MongoDB (driver oficial `mongodb`, sin mongoose).
-- Mensajería: SQS (LocalStack en local), outbox para eventos.
+- Mensajería: SQS (LocalStack en local) para jobs asíncronos.
 - Ejecución: estilo microservicios sobre monolito modular.
   - `api`: HTTP + casos de uso.
   - `worker`: procesamiento asíncrono.

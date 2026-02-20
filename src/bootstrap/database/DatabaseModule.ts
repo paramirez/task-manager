@@ -31,10 +31,6 @@ async function createMongoDb(client: MongoClient): Promise<Db> {
     db.collection('tasks').createIndex({ id: 1 }, { unique: true }),
     db.collection('tasks').createIndex({ status: 1 }),
     db.collection('tasks').createIndex({ dueDate: 1 }),
-    db.collection('outbox_messages').createIndex({ id: 1 }, { unique: true }),
-    db
-      .collection('outbox_messages')
-      .createIndex({ processedAt: 1, occurredAt: 1 }),
     db
       .collection('completed_tasks_reports')
       .createIndex({ id: 1 }, { unique: true }),

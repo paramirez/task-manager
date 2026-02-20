@@ -9,7 +9,20 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Db } from 'mongodb';
+import {
+  ApiProperty,
+  ApiOkResponse,
+  ApiOperation,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
+class HealthStatusResponseDTO {
+  @ApiProperty({ example: 'ok' })
+  status!: string;
+}
+
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
   constructor(
@@ -19,11 +32,18 @@ export class HealthController {
     private readonly asyncJobsQueueName: string,
   ) {}
 
+  @ApiOperation({ summary: 'Liveness probe' })
+  @ApiOkResponse({ type: HealthStatusResponseDTO })
   @Get('live')
   live() {
     return { status: 'ok' };
   }
 
+  @ApiOperation({ summary: 'Readiness probe' })
+  @ApiOkResponse({ type: HealthStatusResponseDTO })
+  @ApiServiceUnavailableResponse({
+    description: 'Dependencias no disponibles',
+  })
   @Get('ready')
   async ready() {
     try {

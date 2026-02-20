@@ -4,6 +4,7 @@ import {
   ArgumentsHost,
   Catch,
   ExceptionFilter,
+  HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -68,6 +69,37 @@ export class UnhandledErrorFilter implements ExceptionFilter {
       response.status(statusCode).json({
         code: exception.code,
         message: exception.message,
+        statusCode,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      });
+      return;
+    }
+
+    if (exception instanceof HttpException) {
+      const statusCode = exception.getStatus();
+      const exceptionResponse = exception.getResponse();
+
+      if (
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse !== null &&
+        'message' in exceptionResponse
+      ) {
+        response.status(statusCode).json({
+          ...exceptionResponse,
+          statusCode,
+          timestamp: new Date().toISOString(),
+          path: request.url,
+        });
+        return;
+      }
+
+      response.status(statusCode).json({
+        code: 'HTTP_EXCEPTION',
+        message:
+          typeof exceptionResponse === 'string'
+            ? exceptionResponse
+            : exception.message,
         statusCode,
         timestamp: new Date().toISOString(),
         path: request.url,

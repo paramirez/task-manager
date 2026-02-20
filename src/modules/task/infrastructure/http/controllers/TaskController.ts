@@ -35,10 +35,20 @@ import {
   CreateTaskDTO,
   PatchTaskDTO,
   ScheduleTaskDTO,
+  ScheduleTaskResponseDTO,
+  TaskResponseDTO,
   UpdateTaskDTO,
 } from '@/modules/task/infrastructure/http/dto/TaskDto';
-import type { TaskDTO } from '@/modules/task/infrastructure/http/dto/TaskDto';
+import {
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnprocessableEntityResponse,
+} from '@nestjs/swagger';
 
+@ApiTags('tasks')
 @Controller({
   path: 'tasks',
   version: '1',
@@ -49,6 +59,8 @@ export class TaskController {
     @Inject(COMMAND_BUS) private readonly commandBus: CommandBus,
   ) {}
 
+  @ApiOperation({ summary: 'Crear una tarea' })
+  @ApiCreatedResponse({ description: 'Tarea creada correctamente' })
   @Post()
   async createTask(@Body() body: CreateTaskDTO): Promise<void> {
     const createTaskResult = await this.commandBus.execute<
@@ -61,8 +73,10 @@ export class TaskController {
     if (!createTaskResult.ok) throw createTaskResult.error;
   }
 
+  @ApiOperation({ summary: 'Listar tareas' })
+  @ApiOkResponse({ type: TaskResponseDTO, isArray: true })
   @Get()
-  async getTasks(): Promise<TaskDTO[]> {
+  async getTasks(): Promise<TaskResponseDTO[]> {
     const tasks = await this.queryBus.execute<Task[], ListTasksQuery>({
       kind: LIST_TASKS_QUERY,
     });
@@ -70,8 +84,12 @@ export class TaskController {
     return tasks.value.map((task) => task.toPrimitives());
   }
 
+  @ApiOperation({ summary: 'Listar tareas por estado' })
+  @ApiOkResponse({ type: TaskResponseDTO, isArray: true })
   @Get('status/:status')
-  async getByStatus(@Param('status') status: string): Promise<TaskDTO[]> {
+  async getByStatus(
+    @Param('status') status: string,
+  ): Promise<TaskResponseDTO[]> {
     const tasks = await this.queryBus.execute<Task[], FindTasksByStatusQuery>({
       kind: FIND_TASKS_BY_STATUS_QUERY,
       status,
@@ -80,8 +98,11 @@ export class TaskController {
     return tasks.value.map((task) => task.toPrimitives());
   }
 
+  @ApiOperation({ summary: 'Obtener tarea por ID' })
+  @ApiOkResponse({ type: TaskResponseDTO })
+  @ApiNotFoundResponse({ description: 'Tarea no encontrada' })
   @Get(':id')
-  async getById(@Param('id') id: string): Promise<TaskDTO> {
+  async getById(@Param('id') id: string): Promise<TaskResponseDTO> {
     const taskResult = await this.queryBus.execute<
       Task | undefined,
       FindTaskByIdQuery
@@ -98,6 +119,10 @@ export class TaskController {
     return task.toPrimitives();
   }
 
+  @ApiOperation({ summary: 'Actualizar completamente una tarea' })
+  @ApiOkResponse({ description: 'Tarea actualizada correctamente' })
+  @ApiNotFoundResponse({ description: 'Tarea no encontrada' })
+  @ApiUnprocessableEntityResponse({ description: 'Payload inválido' })
   @Put(':id')
   async updateTask(
     @Param('id') id: string,
@@ -116,6 +141,10 @@ export class TaskController {
     this.throwIfTaskMutationFailed(result);
   }
 
+  @ApiOperation({ summary: 'Actualizar parcialmente una tarea' })
+  @ApiOkResponse({ description: 'Tarea actualizada correctamente' })
+  @ApiNotFoundResponse({ description: 'Tarea no encontrada' })
+  @ApiUnprocessableEntityResponse({ description: 'Payload inválido' })
   @Patch(':id')
   async patchTask(
     @Param('id') id: string,
@@ -136,6 +165,9 @@ export class TaskController {
     this.throwIfTaskMutationFailed(result);
   }
 
+  @ApiOperation({ summary: 'Eliminar tarea por ID' })
+  @ApiOkResponse({ description: 'Tarea eliminada correctamente' })
+  @ApiNotFoundResponse({ description: 'Tarea no encontrada' })
   @Delete(':id')
   async deleteTask(@Param('id') id: string): Promise<void> {
     const result = await this.commandBus.execute<void, DeleteTaskCommand>({
@@ -145,11 +177,17 @@ export class TaskController {
     this.throwIfTaskMutationFailed(result);
   }
 
+  @ApiOperation({ summary: 'Programar recordatorio asíncrono para una tarea' })
+  @ApiCreatedResponse({ type: ScheduleTaskResponseDTO })
+  @ApiNotFoundResponse({ description: 'Tarea no encontrada' })
+  @ApiUnprocessableEntityResponse({
+    description: 'La tarea no tiene dueDate o payload inválido',
+  })
   @Post(':id/schedule')
   async scheduleTask(
     @Param('id') id: string,
     @Body() body: ScheduleTaskDTO,
-  ): Promise<{ jobId: string }> {
+  ): Promise<ScheduleTaskResponseDTO> {
     const result = await this.commandBus.execute<
       string,
       ScheduleTaskReminderCommand

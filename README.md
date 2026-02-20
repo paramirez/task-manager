@@ -98,6 +98,11 @@ docker compose -f compose.yaml down
 
 ## API
 
+### Swagger
+
+- UI: `GET /docs`
+- OpenAPI JSON: `GET /docs/json`
+
 ### Tasks
 
 - `POST /tasks`
