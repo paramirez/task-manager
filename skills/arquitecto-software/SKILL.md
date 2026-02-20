@@ -15,7 +15,7 @@ Usa este skill para refactors estructurales o decisiones de diseño.
 2. Validar puertos y adapters:
    - interfaces en dominio/aplicación.
    - implementaciones en infraestructura.
-3. Mantener módulos por contexto (`task`, `outbox`, `async-jobs`, etc).
+3. Mantener módulos por contexto (`task`, `async-jobs`, `reporting`, etc).
 4. Confirmar que wiring de framework esté solo en bootstrap/módulos infra.
 
 ## Entregable

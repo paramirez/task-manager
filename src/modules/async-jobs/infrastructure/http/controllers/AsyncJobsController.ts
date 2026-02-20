@@ -6,13 +6,17 @@ import { SCHEDULE_TASK_REMINDER_COMMAND } from '@/modules/async-jobs/application
 import { ScheduleTaskReminderCommand } from '@/modules/async-jobs/application/commands/schedule-task-reminder/ScheduleTaskReminderCommand';
 import {
   EnqueueReportDto,
+  JobIdResponseDto,
+  ProcessJobsResponseDto,
   ProcessJobsDto,
   ScheduleReminderDto,
 } from '@/modules/async-jobs/infrastructure/http/dto/AsyncJobsDto';
 import { Body, Controller, Inject, Param, Post } from '@nestjs/common';
 import { COMMAND_BUS } from '@/shared/cqrs/CqrsTypes';
 import type { CommandBus } from '@/shared/cqrs/CqrsTypes';
+import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('jobs')
 @Controller({
   path: 'jobs',
   version: '1',
@@ -20,11 +24,13 @@ import type { CommandBus } from '@/shared/cqrs/CqrsTypes';
 export class AsyncJobsController {
   constructor(@Inject(COMMAND_BUS) private readonly commandBus: CommandBus) {}
 
+  @ApiOperation({ summary: 'Programar recordatorio asíncrono por taskId' })
+  @ApiCreatedResponse({ type: JobIdResponseDto })
   @Post('task-reminders/:taskId')
   async scheduleTaskReminder(
     @Param('taskId') taskId: string,
     @Body() body: ScheduleReminderDto,
-  ): Promise<{ jobId: string }> {
+  ): Promise<JobIdResponseDto> {
     const result = await this.commandBus.execute<
       string,
       ScheduleTaskReminderCommand
@@ -37,10 +43,12 @@ export class AsyncJobsController {
     return { jobId: result.value };
   }
 
+  @ApiOperation({ summary: 'Encolar reporte de tareas completadas' })
+  @ApiCreatedResponse({ type: JobIdResponseDto })
   @Post('reports/completed-tasks')
   async enqueueCompletedTasksReport(
     @Body() body: EnqueueReportDto,
-  ): Promise<{ jobId: string }> {
+  ): Promise<JobIdResponseDto> {
     const result = await this.commandBus.execute<
       string,
       EnqueueCompletedTasksReportCommand
@@ -52,8 +60,12 @@ export class AsyncJobsController {
     return { jobId: result.value };
   }
 
+  @ApiOperation({ summary: 'Procesar jobs listos en cola' })
+  @ApiCreatedResponse({ type: ProcessJobsResponseDto })
   @Post('process')
-  async processJobs(@Body() body: ProcessJobsDto) {
+  async processJobs(
+    @Body() body: ProcessJobsDto,
+  ): Promise<ProcessJobsResponseDto> {
     const result = await this.commandBus.execute<
       {
         dequeued: number;

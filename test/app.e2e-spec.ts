@@ -4,6 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/bootstrap/app.module';
 import { DATABASE_DB } from '@/bootstrap/database/DatabaseModule';
+import { setupApplication } from '@/bootstrap/app.setup';
 import { Db } from 'mongodb';
 
 describe('HTTP adapters (e2e)', () => {
@@ -53,6 +54,7 @@ describe('HTTP adapters (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    setupApplication(app);
     await app.init();
 
     const db = app.get<Db>(DATABASE_DB);
@@ -64,6 +66,18 @@ describe('HTTP adapters (e2e)', () => {
 
   afterEach(async () => {
     await app.close();
+  });
+
+  it('/docs/json (GET)', async () => {
+    await request(app.getHttpServer())
+      .get('/docs/json')
+      .expect(200)
+      .expect((response) => {
+        const body = response.body as { openapi?: string };
+        if (typeof body.openapi !== 'string') {
+          throw new Error('OpenAPI document not available');
+        }
+      });
   });
 
   it('/tasks (GET)', () => {
