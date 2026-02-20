@@ -16,6 +16,13 @@ Incluye:
 
 `api` y `worker` comparten código (monorepo/monolito modular), pero corren como servicios separados.
 
+### Modelo de despliegue
+
+- No son dos codebases distintas: es el mismo monolito modular desplegado en dos procesos.
+- `api` levanta HTTP para consumo externo (por ejemplo `PORT=3000`, `WORKER_ENABLED=false`).
+- `worker` usa la misma aplicación, pero habilita procesamiento asíncrono (por ejemplo `PORT=3001`, `WORKER_ENABLED=true`).
+- Este modelo permite escalar API y workers de forma independiente sin duplicar lógica de negocio.
+
 ## Arquitectura y patrones de diseño
 
 La solución implementa una arquitectura claramente definida y patrones explícitos:
